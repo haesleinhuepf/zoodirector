@@ -2,9 +2,11 @@ package net.haesleinhuepf.imagej.zoo;
 
 import ij.IJ;
 import ij.ImagePlus;
+import ij.io.FileInfo;
 import sc.fiji.io.Gif_Stack_Writer;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -29,7 +31,27 @@ public class ZooDirector {
 
                 for (File file : subFolder.listFiles()) {
                     String filename = file.getName();
-                    if (filename.endsWith(".gif")) {
+
+                    //
+                    //File file = new File(rootFolder.getAbsolutePath() + "/" + folderName + "/" + filename);
+
+                    if (filename.endsWith(".txt") &&
+                            !filename.endsWith("log.txt") &&
+                            !filename.endsWith("index.txt") &&
+                            !filename.endsWith("metadata.txt") &&
+                            !filename.endsWith("program.txt") &&
+                            !filename.endsWith("scheduleLog.txt") &&
+                            !filename.endsWith("DataClean.txt") &&
+                            !filename.endsWith("DataRaw.txt") &&
+                            !filename.endsWith("Florence.txt") &&
+                            !filename.endsWith("Jarakta3.txt") &&
+                            !filename.endsWith("Seoul.txt") &&
+                            !filename.endsWith("Manila.txt") &&
+                            !filename.endsWith("Karatschi.txt") &&
+                            !filename.endsWith("Kairo.txt") &&
+                            file.length() > 0) {
+                        propertyMap.put(filename, readFile(file.getAbsolutePath()).replace("\n", "<br/>"));
+                    } else if (filename.endsWith(".gif")) {
 
                         // // -Dplugins.dir=C:\Programs\fiji-win64\Fiji.app\plugins\
                         //ImagePlus video = IJ.openImage(file.getAbsolutePath());
@@ -48,7 +70,6 @@ public class ZooDirector {
                     } else if (checkProperty("hyperdrive experiment", filename, propertyMap)) {
                     } else if (checkProperty("fused", filename, propertyMap)) {
                     } else if (checkProperty("unfused", filename, propertyMap)) {
-                    } else if (checkProperty("sample", filename, propertyMap)) {
                     } else if (checkProperty("samplesource", filename, propertyMap)) {
                     } else if (checkProperty("sampleauthor", filename, propertyMap)) {
                     } else if (checkProperty("rake experiment", filename, propertyMap)) {
@@ -59,6 +80,18 @@ public class ZooDirector {
                     } else if (checkProperty("wunderbar", filename, propertyMap)) {
                     } else if (checkProperty("ARCHIVE", filename, propertyMap)) {
                     } else if (checkProperty("DELETE", filename, propertyMap)) {
+                    } else if (checkProperty("experiment", filename, propertyMap)) {
+                    } else if (checkProperty("microscope", filename, propertyMap)) {
+                    } else if (checkProperty("KEEP", filename, propertyMap)) {
+                    } else if (checkProperty("make_video", filename, propertyMap)) {
+                    } else if (checkProperty("488", filename, propertyMap)) {
+                    } else if (checkProperty("594", filename, propertyMap)) {
+                    } else if (checkProperty("wavelength", filename, propertyMap)) {
+                    } else if (checkProperty("size", filename, propertyMap)) {
+                    } else if (checkProperty("okish", filename, propertyMap)) {
+                    } else if (checkProperty("action", filename, propertyMap)) {
+                    } else if (checkProperty("sample", filename, propertyMap)) {
+                    } else if (checkProperty("internal use only", filename, propertyMap)) {
                     } else {
                         additionalFiles.add(filename);
                     }
@@ -117,7 +150,10 @@ public class ZooDirector {
     }
 
     private static boolean checkProperty(String property, String filename, HashMap<String, String> propertyMap) {
-        if (filename.startsWith(property)) {
+        if (filename.toLowerCase().startsWith(property.toLowerCase())) {
+
+
+
             filename = filename.substring(property.length());
             filename = filename.substring(0, filename.length() - 4);
             filename = filename.replace("_", " ");
@@ -127,5 +163,36 @@ public class ZooDirector {
             return true;
         }
         return false;
+    }
+
+    private static String readFile(String filename) {
+        System.out.println("Reading " + filename);
+        BufferedReader br = null;
+        try {
+            br = new BufferedReader(new FileReader(filename));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        try {
+            StringBuilder sb = new StringBuilder();
+            String line = br.readLine();
+
+            while (line != null) {
+                sb.append(line);
+                sb.append(System.lineSeparator());
+                line = br.readLine();
+            }
+            br.close();
+            return sb.toString();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                br.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
     }
 }
