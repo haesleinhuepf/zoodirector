@@ -99,9 +99,9 @@ public class ZooDirector {
 
 
 
-                index.append("<tr><td><b>" + folderName + "</b></td>\n");
+                index.append("<tr><td colspan=\"3\"><b>" + folderName + "</b></td></tr>\n");
 
-                index.append("<td>");
+                index.append("<tr><td>");
                 if (propertyMap.keySet().size() > 0) {
                     index.append("<table border=\"1\"><tr>");
                     for (String key : propertyMap.keySet()) {
