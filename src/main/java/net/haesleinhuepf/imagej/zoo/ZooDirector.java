@@ -17,7 +17,8 @@ public class ZooDirector {
         index.append("<table>");
         File rootFolder = new File("C:/structure/mpicloud/zoo");
 
-        for (File subFolder : rootFolder.listFiles()) {
+        for (int i = rootFolder.listFiles().length - 1; i >= 0; i--) {
+            File subFolder = rootFolder.listFiles()[i];
             if (subFolder.isDirectory()) {
                 String folderName = subFolder.getName();
 
@@ -59,7 +60,7 @@ public class ZooDirector {
                         //IJ.run(video,"Animated Gif ... ", "name=[" + filename + "] set_global_lookup_table_options=[Do not use] optional= image=[No Disposal] set=100 number=1000 transparency=[No Transparency] red=0 green=0 blue=0 index=0 filename=[" + file.getAbsolutePath() + "]");
 
                         imageNames.append("<td><b>" + filename + "</b></td><br/>\n");
-                        images.append("<td><img src=\"" + folderName + "/" + filename + "\" height=\"150\"/></td>\n");
+                        images.append("<td><a href=\"" + folderName + "/" + filename + "\"/><img src=\"" + folderName + "/" + filename + "\" height=\"150\"/></a></td>\n");
                         imageFound = true;
                     } else if (checkProperty("frames", filename, propertyMap)) {
                     } else if (checkProperty("samples", filename, propertyMap)) {
@@ -125,6 +126,10 @@ public class ZooDirector {
                 index.append("</td>\n");
 
                 index.append("<td>");
+                for(int j = 0; j < 100; j++) {
+                    index.append("&nbsp;");
+                }
+                index.append("<br/>");
                 for (String filename : additionalFiles) {
                     String description = "";
                     if (filename.endsWith(".txt")) {
@@ -135,7 +140,7 @@ public class ZooDirector {
 
                         description = " (" + lines + " lines)";
                     }
-                    index.append("<li><a href=\"" + folderName + "/" + filename + "\"/>" + filename + description + "</a></li>\n");
+                    index.append("<a href=\"" + folderName + "/" + filename + "\"/>" + filename + description + "</a>, \n");
                 }
                 index.append("</td></tr>");
 
