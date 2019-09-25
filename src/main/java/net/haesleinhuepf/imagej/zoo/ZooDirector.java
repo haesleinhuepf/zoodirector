@@ -36,7 +36,19 @@ public class ZooDirector {
                     //
                     //File file = new File(rootFolder.getAbsolutePath() + "/" + folderName + "/" + filename);
 
-                    if (filename.endsWith(".txt") &&
+                    if (filename.endsWith(".txt") && filename.startsWith("comment_")) {
+                        String content = readFile(file.getAbsolutePath());
+                        int linecount = 1;
+                        for (String line : content.split("\n")) {
+                            if (line.contains(":")) {
+                                String[] line_temp = line.split(":");
+                                propertyMap.put(line_temp[0], line_temp[1]);
+                            } else {
+                                propertyMap.put("comment"  + linecount, line);
+                            }
+                            linecount++;
+                        }
+                    } else if (filename.endsWith(".txt") &&
                             !filename.endsWith("log.txt") &&
                             !filename.endsWith("index.txt") &&
                             !filename.endsWith("metadata.txt") &&
@@ -59,8 +71,13 @@ public class ZooDirector {
                         //video.show();
                         //IJ.run(video,"Animated Gif ... ", "name=[" + filename + "] set_global_lookup_table_options=[Do not use] optional= image=[No Disposal] set=100 number=1000 transparency=[No Transparency] red=0 green=0 blue=0 index=0 filename=[" + file.getAbsolutePath() + "]");
 
+                        int imageHeight = 300;
+                        if (filename.contains("scan")) {
+                            imageHeight = 50;
+                        }
+
                         imageNames.append("<td><b>" + filename + "</b></td><br/>\n");
-                        images.append("<td><a href=\"" + folderName + "/" + filename + "\"/><img src=\"" + folderName + "/" + filename + "\" height=\"150\"/></a></td>\n");
+                        images.append("<td><a href=\"" + folderName + "/" + filename + "\"/><img src=\"" + folderName + "/" + filename + "\" height=\"" + imageHeight + "\"/></a></td>\n");
                         imageFound = true;
                     } else if (checkProperty("frames", filename, propertyMap)) {
                     } else if (checkProperty("samples", filename, propertyMap)) {
@@ -106,7 +123,41 @@ public class ZooDirector {
                 if (propertyMap.keySet().size() > 0) {
                     index.append("<table border=\"1\"><tr>");
                     for (String key : propertyMap.keySet()) {
-                        index.append("<tr><td>" + key + "</td><td>" + propertyMap.get(key) + "</td></tr>");
+                        String content = propertyMap.get(key);
+                        if (content.trim().length() > 0 &&
+                            content.trim().compareTo("---") != 0 &&
+                            (key.compareTo("sample count") != 0 || content.compareTo("1") != 0)) {
+
+                            String props = "";
+                            if (key.toLowerCase().contains("delet") ||
+                                    key.toLowerCase().contains("dead") ||
+                                    key.toLowerCase().contains("died") ||
+                                    key.toLowerCase().contains("not healthy") ||
+                                    key.toLowerCase().contains("dead")
+                            ) {
+                                props = " style=\"background-color:#990000; font-color:#FFFFFF\" ";
+                            } else if (key.toLowerCase().contains("scan")) {
+                                props = " style=\"background-color:#999900; font-color:#000000\" ";
+                            }  else if (key.toLowerCase().contains("awesome") ||
+                                    key.toLowerCase().contains("archiv")
+                            ) {
+                                props = " style=\"background-color:#009900; font-color:#000000\" ";
+                            }
+
+                            String contentProperties = "";
+                            if (content.endsWith("GB")) {
+                                String temp = content;
+                                temp = temp.split(",")[0];
+                                temp = temp.split(" ")[0];
+                                temp = temp.split("GB")[0];
+                                if (Integer.parseInt(temp) > 200) {
+                                    contentProperties = " style=\"background-color:#990000; font-color:#000000\" ";
+                                } else if (Integer.parseInt(temp) > 50) {
+                                    contentProperties = " style=\"background-color:#999900; font-color:#000000\" ";
+                                }
+                            }
+                            index.append("<tr><td" + props + ">" + key + "</td><td " + contentProperties + ">" + content + "</td></tr>");
+                        }
                     }
                     index.append("</table>");
                 }
@@ -170,7 +221,7 @@ public class ZooDirector {
         return false;
     }
 
-    private static String readFile(String filename) {
+    public static String readFile(String filename) {
         System.out.println("Reading " + filename);
         BufferedReader br = null;
         try {
