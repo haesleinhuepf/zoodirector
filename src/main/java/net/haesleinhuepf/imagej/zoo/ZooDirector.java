@@ -2,6 +2,7 @@ package net.haesleinhuepf.imagej.zoo;
 
 import ij.IJ;
 import ij.ImagePlus;
+import ij.gui.GenericDialog;
 import ij.io.FileInfo;
 import sc.fiji.io.Gif_Stack_Writer;
 
@@ -62,6 +63,7 @@ public class ZooDirector {
                             !filename.endsWith("Manila.txt") &&
                             !filename.endsWith("Karatschi.txt") &&
                             !filename.endsWith("Kairo.txt") &&
+                            !filename.endsWith("error.txt") &&
                             file.length() > 0) {
                         propertyMap.put(filename, readFile(file.getAbsolutePath()).replace("\n", "<br/>"));
                     } else if (filename.endsWith(".gif")) {
@@ -135,13 +137,13 @@ public class ZooDirector {
                                     key.toLowerCase().contains("not healthy") ||
                                     key.toLowerCase().contains("dead")
                             ) {
-                                props = " style=\"background-color:#990000; font-color:#FFFFFF\" ";
+                                props = " style=\"background-color:#990000; font-color:#FFFFFF; width:300px\" ";
                             } else if (key.toLowerCase().contains("scan")) {
-                                props = " style=\"background-color:#999900; font-color:#000000\" ";
+                                props = " style=\"background-color:#999900; font-color:#000000; width:300px\" ";
                             }  else if (key.toLowerCase().contains("awesome") ||
                                     key.toLowerCase().contains("archiv")
                             ) {
-                                props = " style=\"background-color:#009900; font-color:#000000\" ";
+                                props = " style=\"background-color:#009900; font-color:#000000; width:300px\" ";
                             }
 
                             String contentProperties = "";

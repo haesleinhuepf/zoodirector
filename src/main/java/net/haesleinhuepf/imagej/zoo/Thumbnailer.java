@@ -2,20 +2,30 @@ package net.haesleinhuepf.imagej.zoo;
 
 import ij.IJ;
 import ij.ImagePlus;
+import ij.ImageStack;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
+import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 import net.haesleinhuepf.clijx.CLIJx;
+import sc.fiji.io.My_Gif_Stack_Writer;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Collections;
 
 import static net.haesleinhuepf.imagej.zoo.ZooDirector.readFile;
 
 public class Thumbnailer {
+
+    static int numFramesPerVideo = 50;
+
     public static void main(String... args) {
         String[] folders = {
-                "\\\\fileserver\\myersspimdata\\Robert\\"
+                "\\\\fileserver.mpi-cbg.de\\myersspimdata\\Dani\\",
+                "\\\\fileserver.mpi-cbg.de\\myersspimdata\\IMAGING\\archive_data_good\\",
+                "\\\\fileserver.mpi-cbg.de\\myersspimdata\\Robert\\"
         };
 
         for (String folder : folders) {
@@ -23,11 +33,11 @@ public class Thumbnailer {
             int i = 0;
             for (File subfolder : new File(folder).listFiles()) {
                 i++;
-                System.out.println("i " + i);
+                //System.out.println("i " + i);
                 if (subfolder.isDirectory()) {
                     boolean thumbnail_exists = false;
                     for (File file : subfolder.listFiles()) {
-                        if (file.toString().endsWith(".gif")) {
+                        if (file.toString().endsWith(".gif") && (!file.toString().contains("scan_")) && (!file.toString().contains("_AutoGif"))) {
                             thumbnail_exists = true;
                             break;
                         }
@@ -44,7 +54,7 @@ public class Thumbnailer {
         File folder = new File(folderName + "/stacks");
 
 
-        System.out.println("Scanning " + folder);
+        //System.out.println("Scanning " + folder);
 
         if (!folder.exists()) {
             return;
@@ -67,7 +77,7 @@ public class Thumbnailer {
         }
 
         if (imageFolder != null) {
-            System.out.println(imageFolder);
+            //System.out.println(imageFolder);
             long sumSize = 0;
             for (File file : imageFolder.listFiles()) {
                 sumSize += file.length();
@@ -89,6 +99,11 @@ public class Thumbnailer {
 
     private static void makeThumbnails(String targetFolder, File sourceFolder) {
         int numFiles = sourceFolder.listFiles().length;
+
+        if ((sourceFolder + "").contains("thumb") && numFiles > numFramesPerVideo) {
+            makeGif(targetFolder, sourceFolder);
+        }
+/*
         for (int i = 0; i < numFiles; i++) {
             File file = sourceFolder.listFiles()[i];
             if (file.toString().endsWith(".tif") ||
@@ -113,9 +128,9 @@ public class Thumbnailer {
                 }
 
                 if (buffer != null) {
-                    System.out.println("w " + buffer.getWidth());
-                    System.out.println("h " + buffer.getHeight());
-                    System.out.println("d " + buffer.getDepth());
+                    //System.out.println("w " + buffer.getWidth());
+                    //System.out.println("h " + buffer.getHeight());
+                    //System.out.println("d " + buffer.getDepth());
 
                     ClearCLBuffer maxProjection = buffer;
                     if (buffer.getDepth() > 1) {
@@ -143,8 +158,76 @@ public class Thumbnailer {
                     }
                 }
             }
-        }
+        }*/
     }
+
+    private static void makeGif(String targetFolder, File sourceFolder) {
+        File[] files = sourceFolder.listFiles();
+        int numFiles = files.length;
+
+        ArrayList<File> fileList = new ArrayList<File>();
+        for (int i = 0; i < numFiles; i++) {
+            fileList.add(files[i]);
+        }
+
+        Collections.sort(fileList);
+
+
+        CLIJx clijx = CLIJx.getInstance();
+        ClearCLBuffer stack = null;
+        int sliceCount = 0;
+        for (int i = 0; i < numFiles; i += numFiles / numFramesPerVideo) {
+            File file = fileList.get(i);
+            if (file.toString().endsWith(".tif")) {
+
+                ClearCLBuffer buffer = null;
+                if (file.toString().endsWith(".tif")) {
+                    buffer = clijx.readImageFromDisc(file.toString());
+                } else {
+                    continue;
+                }
+
+                //System.out.println("w " + buffer.getWidth());
+                //System.out.println("h " + buffer.getHeight());
+                //System.out.println("d " + buffer.getDepth());
+
+                if (buffer.getDepth() > 1) {
+                    buffer.close();
+                    continue;
+                }
+
+                if (stack == null) {
+                    stack = clijx.create(new long[]{buffer.getWidth(), buffer.getHeight(), numFramesPerVideo}, NativeTypeEnum.UnsignedShort);
+                }
+
+                clijx.copySlice(buffer, stack, sliceCount);
+                buffer.close();
+                sliceCount++;
+            }
+        }
+
+        if (stack != null) {
+            ImagePlus imp = clijx.pull(stack);
+            imp.setZ(imp.getNSlices() / 2);
+            IJ.run(imp, "Enhance Contrast", "saturated=0.35");
+            IJ.run(imp, "8-bit", "");
+            stack.close();
+            //System.out.println("stack " + stack.getNativeType());
+            //System.out.println("imp " + imp.getBitDepth());
+
+            String[] temp = targetFolder.replace("\\", "/").split("/");
+            String temp2 = temp[temp.length - 1];
+            temp = temp2.split("_");
+            temp2 = temp[0];
+            temp = temp2.split("-");
+            temp2 = temp[temp.length - 1];
+
+            System.out.println(targetFolder + "/" + temp2 + "_AutoGif.gif");
+            My_Gif_Stack_Writer.writeGif(imp, targetFolder + "/" + temp2 + "_AutoGif.gif");
+        }
+
+    }
+
 
     private static void writeFile(String filename, String content) {
         try {
