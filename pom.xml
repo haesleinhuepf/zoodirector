@@ -103,7 +103,22 @@
 		<dependency>
 			<groupId>net.haesleinhuepf</groupId>
 			<artifactId>clij-advanced-filters_</artifactId>
-			<version>0.15.0</version>
+			<version>0.16.1</version>
+		</dependency>
+		<dependency>
+			<groupId>net.clearcontrol</groupId>
+			<artifactId>clij-clearcl</artifactId>
+			<version>0.10.0</version>
+		</dependency>
+		<dependency>
+			<groupId>net.clearcontrol</groupId>
+			<artifactId>clij-coremem</artifactId>
+			<version>0.6.0</version>
+		</dependency>
+		<dependency>
+			<groupId>net.haesleinhuepf</groupId>
+			<artifactId>clij-core</artifactId>
+			<version>1.4.3</version>
 		</dependency>
 	</dependencies>
 

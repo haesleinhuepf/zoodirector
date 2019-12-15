@@ -77,8 +77,8 @@ public class VirtualRawStackOpener implements PlugIn {
                 pixelUnit
         );
         ImagePlus imp = new ImagePlus(path, stack);
-        System.out.println("stack size " + imp.getStackSize());
-        System.out.println("stack2 size " + stack.getSize());
+        //System.out.println("stack size " + imp.getStackSize());
+        //System.out.println("stack2 size " + stack.getSize());
 
         ImagePlus imagePlus = HyperStackConverter.toHyperStack(imp, 1, depth, stack.getSize() / depth);
         imagePlus.setTitle(path);
