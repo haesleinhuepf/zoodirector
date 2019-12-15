@@ -6,16 +6,20 @@ import ij.ImageJ;
 import ij.ImagePlus;
 import ij.WindowManager;
 import ij.measure.Calibration;
+import ij.measure.ResultsTable;
 import ij.plugin.PlugIn;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
+import net.haesleinhuepf.clij.kernels.Kernels;
 import net.haesleinhuepf.clijx.CLIJx;
 import net.imglib2.realtransform.AffineTransform3D;
 
+import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.Arrays;
 
 /**
  * ImageRegistration3D
@@ -40,7 +44,9 @@ public class ImageRegistration3D implements PlugIn {
     Scrollbar registrationRotationYSlider = null;
     Scrollbar registrationRotationZSlider = null;
 
-    boolean mouseMoving = false;
+    float scale1X = 1.0f;
+    float scale1Y = 1.0f;
+    float scale1Z = 1.0f;
 
     @Override
     public void run(String arg) {
@@ -85,9 +91,9 @@ public class ImageRegistration3D implements PlugIn {
 
         //# configure initial scaling step
         Calibration calib = imp1.getCalibration();
-        float scale1X = (float) (calib.pixelWidth / calib.pixelDepth * zoom);
-        float scale1Y = (float) (calib.pixelHeight / calib.pixelDepth * zoom);
-        float scale1Z = (float) (1.0 * zoom);
+        scale1X = (float) (calib.pixelWidth / calib.pixelDepth * zoom);
+        scale1Y = (float) (calib.pixelHeight / calib.pixelDepth * zoom);
+        scale1Z = (float) (1.0 * zoom);
         calib = imp2.getCalibration();
         float scale2X = (float) (calib.pixelWidth / calib.pixelDepth * zoom);
         float scale2Y = (float) (calib.pixelHeight / calib.pixelDepth * zoom);
@@ -162,6 +168,8 @@ public class ImageRegistration3D implements PlugIn {
         registrationRotationYSlider = (Scrollbar) gdp.getSliders().get(12);
         registrationRotationZSlider = (Scrollbar) gdp.getSliders().get(13);
 
+        AffineTransform3D at = new AffineTransform3D();
+
         //# loop until user closed the dialog
         boolean stillValid = false;
         while ((! gdp.wasCanceled()) && (!gdp.wasOKed())) {
@@ -234,8 +242,7 @@ public class ImageRegistration3D implements PlugIn {
                             registrationRotationY == formerRegistrationRotationY &&
                             registrationRotationZ == formerRegistrationRotationZ &&
                             formerT1 == imp1.getFrame() &&
-                            formerT2 == imp2.getFrame() &&
-                            !mouseMoving
+                            formerT2 == imp2.getFrame()
             ) {
                 //# sleep some msec
                 try {
@@ -328,7 +335,7 @@ public class ImageRegistration3D implements PlugIn {
             formerRegistrationRotationY = registrationRotationY;
             formerRegistrationRotationZ = registrationRotationZ;
 
-            AffineTransform3D at = new AffineTransform3D();
+            at = new AffineTransform3D();
             at.translate(-transformed.getWidth() / 2, -transformed.getHeight() / 2, -transformed.getDepth() / 2);
             at.translate(viewTranslationX, viewTranslationY, viewTranslationZ);
             at.rotate(0, viewRotationX);
@@ -371,7 +378,15 @@ public class ImageRegistration3D implements PlugIn {
             clijx.showRGB(maxZProjection1, maxZProjection2, maxZProjection2, "fused Z");
 
             if (!interactionInitialized) {
+                impX = WindowManager.getImage("fused X");
+                impY = WindowManager.getImage("fused Y");
+                impZ = WindowManager.getImage("fused Z");
+
+                impX.getWindow().setLocation(impZ.getWindow().getX() + impZ.getWindow().getWidth(), impZ.getWindow().getY());
+                impY.getWindow().setLocation(impZ.getWindow().getX(), impZ.getWindow().getY() + impZ.getWindow().getHeight());
+
                 initInteraction();
+
                 interactionInitialized = true;
             }
 
@@ -385,72 +400,146 @@ public class ImageRegistration3D implements PlugIn {
 
         //# clean up
         clijx.clear();
+
+        System.out.println("Translation X: " + registrationTranslationXSlider.getValue());
+        System.out.println("Translation Y: " + registrationTranslationYSlider.getValue());
+        System.out.println("Translation Z: " + registrationTranslationZSlider.getValue());
+        System.out.println("Rotation X: " + registrationRotationXSlider.getValue());
+        System.out.println("Rotation Y: " + registrationRotationYSlider.getValue());
+        System.out.println("Rotation Z: " + registrationRotationZSlider.getValue());
+        System.out.println("Affine transform: " + Arrays.toString(at.getRowPackedCopy()));
+
+        ResultsTable table = ResultsTable.getResultsTable();
+        if (table == null) {
+            table = new ResultsTable();
+        }
+        table.incrementCounter();
+
+        table.addValue("Fixed_image", imp1.getTitle());
+        table.addValue("Fixed_image+frame", imp1.getFrame());
+        table.addValue("Moving_image", imp2.getTitle());
+        table.addValue("Moving_image+frame", imp2.getFrame());
+        table.addValue("Translation_X", registrationTranslationXSlider.getValue());
+        table.addValue("Translation_Y", registrationTranslationYSlider.getValue());
+        table.addValue("Translation_Z", registrationTranslationZSlider.getValue());
+        table.addValue("Rotation_X", registrationRotationXSlider.getValue());
+        table.addValue("Rotation_Y", registrationRotationYSlider.getValue());
+        table.addValue("Rotation_Z", registrationRotationZSlider.getValue());
+        double[] matrix = at.getRowPackedCopy();
+        for (int i = 0; i < matrix.length; i++) {
+            table.addValue("m" + i, matrix[i]);
+        }
+        table.show("Results");
+    }
+
+    ImagePlus impX = null;
+    ImagePlus impY = null;
+    ImagePlus impZ = null;
+
+    class AffineTransformModificationState{
+        public int mouseStartX = 0;
+        public int mouseStartY = 0;
+        public double translationX = 0;
+        public double translationY = 0;
+        public double translationZ = 0;
+        public double rotationX = 0;
+        public double rotationY = 0;
+        public double rotationZ = 0;
+    }
+
+    final AffineTransformModificationState parameters = new AffineTransformModificationState();
+    class MouseHandler extends MouseAdapter {
+        @Override
+        public void mouseDragged(MouseEvent e) {
+            int deltaX = e.getX() - parameters.mouseStartX;
+            int deltaY = e.getY() - parameters.mouseStartY;
+            // System.out.println(e.);
+
+            if (e.getSource() == impZ.getWindow().getCanvas()) {
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    registrationTranslationXSlider.setValue((int) (parameters.translationX + (deltaX * scale1X)));
+                    registrationTranslationYSlider.setValue((int) (parameters.translationY + (deltaY * scale1Y)));
+                } else {
+                    registrationRotationYSlider.setValue((int) (parameters.rotationY + (deltaX)));
+                    registrationRotationXSlider.setValue((int) (parameters.rotationX - (deltaY)));
+                }
+            } else if (e.getSource() == impX.getWindow().getCanvas()) {
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    registrationTranslationZSlider.setValue((int) (parameters.translationZ + (deltaX * scale1X)));
+                    registrationTranslationYSlider.setValue((int) (parameters.translationY + (deltaY * scale1Y)));
+                } else {
+                    registrationRotationZSlider.setValue((int) (parameters.rotationZ - (deltaY)));
+                    registrationRotationYSlider.setValue((int) (parameters.rotationY + (deltaX)));
+                }
+            } else if (e.getSource() == impY.getWindow().getCanvas()) {
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    registrationTranslationXSlider.setValue((int) (parameters.translationX + (deltaX * scale1X)));
+                    registrationTranslationZSlider.setValue((int) (parameters.translationZ + (deltaY * scale1Y)));
+                } else {
+                    registrationRotationZSlider.setValue((int) (parameters.rotationZ + (deltaX)));
+                    registrationRotationXSlider.setValue((int) (parameters.rotationX - (deltaY)));
+                }
+            }
+        }
+
+        @Override
+        public void mousePressed(MouseEvent e) {
+            initAffineTransformState(parameters, e);
+        }
+
     }
 
     private void initInteraction() {
         IJ.setTool("hand");
-        //ImagePlus impX = WindowManager.getImage("fused X");
-        ImagePlus impZ = WindowManager.getImage("fused Z");
 
-        final int[] parameters = new int[2];
-
-        impZ.getWindow().getCanvas().addMouseMotionListener(new MouseAdapter() {
-            @Override
-            public void mouseMoved(MouseEvent e) {
-                if (mouseMoving) {
-                    int deltaX = e.getX() - parameters[0];
-                    int deltaY = e.getY() - parameters[1];
-
-                    registrationTranslationXSlider.setValue(registrationTranslationXSlider.getValue() + deltaX);
-                    registrationTranslationYSlider.setValue(registrationTranslationYSlider.getValue() + deltaY);
-
-                    impZ.getWindow().getCanvas().setImageUpdated();
-                    impZ.getWindow().getCanvas().update(impZ.getWindow().getCanvas().getGraphics());
-                    System.out.println("Mouse moved " + deltaX + " / " + deltaY);
+        MouseHandler mouseHandler = new MouseHandler();
+        for (ImagePlus imp : new ImagePlus[]{impX, impY, impZ}) {
+            imp.getWindow().getCanvas().disablePopupMenu(false);
+            while (imp.getWindow().getCanvas().getKeyListeners().length > 0) {
+                imp.getWindow().getCanvas().removeKeyListener(imp.getWindow().getCanvas().getKeyListeners()[0]);
+            }
+            while (imp.getWindow().getCanvas().getMouseListeners().length > 0) {
+                imp.getWindow().getCanvas().removeMouseListener(imp.getWindow().getCanvas().getMouseListeners()[0]);
+            }
+            imp.getWindow().getCanvas().addMouseMotionListener(mouseHandler);
+            imp.getWindow().getCanvas().addMouseListener(mouseHandler);
+            imp.getWindow().getCanvas().addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyReleased(KeyEvent e) {
+                    if (e.getKeyCode() == KeyEvent.VK_UP) {
+                        registrationTranslationYSlider.setValue(registrationTranslationYSlider.getValue() - 1);
+                    }
+                    if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+                        registrationTranslationYSlider.setValue(registrationTranslationYSlider.getValue() + 1);
+                    }
+                    if (e.getKeyCode() == KeyEvent.VK_LEFT) {
+                        registrationTranslationXSlider.setValue(registrationTranslationXSlider.getValue() - 1);
+                    }
+                    if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
+                        registrationTranslationXSlider.setValue(registrationTranslationXSlider.getValue() + 1);
+                    }
+                    if (e.getKeyCode() == KeyEvent.VK_PAGE_DOWN) {
+                        registrationTranslationZSlider.setValue(registrationTranslationZSlider.getValue() + 1);
+                    }
+                    if (e.getKeyCode() == KeyEvent.VK_PAGE_UP) {
+                        registrationTranslationZSlider.setValue(registrationTranslationZSlider.getValue() - 1);
+                    }
                 }
-            }
-        });
-        impZ.getWindow().getCanvas().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                parameters[0] = e.getX();
-                parameters[1] = e.getY();
-                mouseMoving = true;
-            }
-
-
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                int deltaX = e.getX() - parameters[0];
-                int deltaY = e.getY() - parameters[1];
-                mouseMoving = false;
-                registrationTranslationXSlider.setValue(registrationTranslationXSlider.getValue() + deltaX);
-                registrationTranslationYSlider.setValue(registrationTranslationYSlider.getValue() + deltaY);
-            }
-        });
-        while(impZ.getWindow().getCanvas().getKeyListeners().length > 0) {
-            impZ.getWindow().getCanvas().removeKeyListener(impZ.getWindow().getCanvas().getKeyListeners()[0]);
+            });
         }
-        impZ.getWindow().getCanvas().addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyReleased(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_UP) {
-                    registrationTranslationYSlider.setValue(registrationTranslationYSlider.getValue() - 1);
-                }
-                if (e.getKeyCode() == KeyEvent.VK_DOWN) {
-                    registrationTranslationYSlider.setValue(registrationTranslationYSlider.getValue() + 1);
-                }
-                if (e.getKeyCode() == KeyEvent.VK_LEFT) {
-                    registrationTranslationXSlider.setValue(registrationTranslationXSlider.getValue() - 1);
-                }
-                if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
-                    registrationTranslationXSlider.setValue(registrationTranslationXSlider.getValue() + 1);
-                }
-            }
-        });
 
 
+    }
+
+    private void initAffineTransformState(AffineTransformModificationState parameters, MouseEvent e) {
+        parameters.mouseStartX = e.getX();
+        parameters.mouseStartY = e.getY();
+        parameters.translationX = registrationTranslationXSlider.getValue();
+        parameters.translationY = registrationTranslationYSlider.getValue();
+        parameters.translationZ = registrationTranslationZSlider.getValue();
+        parameters.rotationX = registrationRotationXSlider.getValue();
+        parameters.rotationY = registrationRotationYSlider.getValue();
+        parameters.rotationZ = registrationRotationZSlider.getValue();
     }
 
     public static void main(String... args){
