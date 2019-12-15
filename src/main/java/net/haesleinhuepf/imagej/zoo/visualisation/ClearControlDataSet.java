@@ -1,12 +1,17 @@
 package net.haesleinhuepf.imagej.zoo.visualisation;
 
 import ij.ImageJ;
+import ij.ImageListener;
 import ij.ImagePlus;
 import ij.VirtualStack;
 import ij.gui.NewImage;
+import ij.gui.Plot;
+import ij.gui.Roi;
 import ij.io.Opener;
 import ij.plugin.FolderOpener;
+import ij.plugin.HyperStackConverter;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -126,6 +131,8 @@ public class ClearControlDataSet {
             }
             count++;
         }
+
+        ImagePlus.addImageListener(new CCImpListener());
     }
 
     private ImagePlus data = null;
@@ -156,6 +163,7 @@ public class ClearControlDataSet {
             for (String thumbnailfolder : potentialThumbnailsFolders) {
                 if (new File(thumbnailfolder).exists() && new File(thumbnailfolder).listFiles().length > 1) {
                     thumbnails = FolderOpener.open(thumbnailfolder, "virtual");
+                    thumbnails = HyperStackConverter.toHyperStack(thumbnails, 1, 1, thumbnails.getNSlices());
                     break;
                 }
             }
@@ -240,4 +248,58 @@ public class ClearControlDataSet {
         System.out.println("time1: " + ccds.getTimesInSeconds()[1]);
     }
 
+    private class CCImpListener implements ImageListener {
+        boolean acting = false;
+        @Override
+        public void imageOpened(ImagePlus imp) {
+
+        }
+
+        @Override
+        public void imageClosed(ImagePlus imp) {
+
+        }
+
+        @Override
+        public void imageUpdated(ImagePlus imp) {
+            if (acting) {
+                return;
+            }
+            if (imp == data) {
+                acting = true;
+                if (thumbnails!= null) {
+                    thumbnails.setT(data.getT());
+                }
+                refreshPlots();
+                acting = false;
+            }
+            if (imp == thumbnails) {
+                acting = true;
+                if (data!= null) {
+                    data.setT(thumbnails.getT());
+                }
+                refreshPlots();
+                acting = false;
+            }
+        }
+    }
+
+    private ArrayList<Plot> plots = new ArrayList<>();
+    public void addPlot(Plot plot) {
+        plots.add(plot);
+    }
+
+    private void refreshPlots() {
+        if (data == null) {
+            return;
+        }
+        for (Plot plot : plots) {
+            int f = data.getFrame();
+            double timeInMinutes = getTimesInMinutes()[f];
+            double x = plot.scaleXtoPxl(timeInMinutes);
+            Roi roi = new Roi(x, 0, 1, plot.getImagePlus().getHeight() - 20);
+            roi.setStrokeColor(Color.red);
+            plot.getImagePlus().setRoi(roi);
+        }
+    }
 }

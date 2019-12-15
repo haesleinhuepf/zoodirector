@@ -33,7 +33,7 @@ public class ClearControlInteractivePlot {
                 double timeInMinues = plot.descaleX(e.getX());
                 int frame = dataSet.getFirstFrameAfterTime(timeInMinues * 60);
 
-                dataSet.getThumbnails().setZ(frame);
+                dataSet.getThumbnails().setT(frame);
 
                 dataSet.getImageData().setT(frame);
                 IJ.run(dataSet.getImageData(), "Enhance Contrast", "saturated=0.35");
@@ -41,5 +41,6 @@ public class ClearControlInteractivePlot {
                 super.mouseClicked(e);
             }
         });
+        dataSet.addPlot(plot);
     }
 }
