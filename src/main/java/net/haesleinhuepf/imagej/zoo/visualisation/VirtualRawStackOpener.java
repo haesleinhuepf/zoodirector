@@ -4,6 +4,7 @@ import fiji.util.gui.GenericDialogPlus;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.Prefs;
+import ij.measure.Calibration;
 import ij.plugin.HyperStackConverter;
 import ij.plugin.PlugIn;
 
@@ -76,12 +77,17 @@ public class VirtualRawStackOpener implements PlugIn {
                 pixelSizeX, pixelSizeY, pixelSizeZ,
                 pixelUnit
         );
-        ImagePlus imp = new ImagePlus(path, stack);
+        ImagePlus imp = new ImagePlus(foldername, stack);
         //System.out.println("stack size " + imp.getStackSize());
         //System.out.println("stack2 size " + stack.getSize());
 
         ImagePlus imagePlus = HyperStackConverter.toHyperStack(imp, 1, depth, stack.getSize() / depth);
-        imagePlus.setTitle(path);
+        imagePlus.setTitle(foldername);
+        Calibration calibration = imagePlus.getCalibration();
+        calibration.pixelWidth = pixelSizeX;
+        calibration.pixelHeight = pixelSizeY;
+        calibration.pixelDepth = pixelSizeZ;
+        calibration.setUnit(pixelUnit);
         return imagePlus;
     }
 

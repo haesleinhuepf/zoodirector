@@ -1,9 +1,6 @@
 package net.haesleinhuepf.imagej.zoo.visualisation;
 
-import ij.ImageJ;
-import ij.ImageListener;
-import ij.ImagePlus;
-import ij.VirtualStack;
+import ij.*;
 import ij.gui.NewImage;
 import ij.gui.Plot;
 import ij.gui.Roi;
@@ -301,5 +298,49 @@ public class ClearControlDataSet {
             roi.setStrokeColor(Color.red);
             plot.getImagePlus().setRoi(roi);
         }
+    }
+
+    public void show() {
+        ImagePlus imp = getImageData();
+        imp.setZ(imp.getNSlices() / 2);
+        IJ.run(imp, "Enhance Contrast", "saturated=0.35");
+        imp.show();
+
+        getThumbnails().show();
+        getImageData().show();
+
+        double[] fpm = getFramesPerMinute();
+        double[] time = ClearControlDataSet.ramp(fpm.length);
+
+        new ClearControlInteractivePlot(this, "Frames per minute", time, fpm).show();
+
+        for (String measurementFilename : getMeasurementFiles()) {
+            System.out.println("Measurement: " + measurementFilename);
+            MeasurementTable mt = new MeasurementTable(getPath() + measurementFilename);
+            //System.out.println(Arrays.toString(mt.getColumnNames()));
+
+            for (String column : mt.getColumnNames()) {
+                if (!shouldShow(measurementFilename, column)) {
+                    continue;
+                }
+
+                System.out.println("Column: " + column);
+                double[] yData = mt.getColumn(column);
+                double[] xTimeData = getTimesInMinutes();
+
+                new ClearControlInteractivePlot(this, column, xTimeData, yData).show();
+            }
+        }
+    }
+
+    private static boolean shouldShow(String filename, String columnName) {
+        if (columnName.trim().length() < 3) {
+            return false;
+        }
+        try {
+            Integer.parseInt(columnName);
+            return false; // if numeric: don't show
+        } catch (Exception e) { }
+        return true;
     }
 }
