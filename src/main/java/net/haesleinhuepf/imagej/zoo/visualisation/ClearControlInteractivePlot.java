@@ -31,7 +31,7 @@ public class ClearControlInteractivePlot {
                 //System.out.println(e.getX() + "/" + e.getY());
                 //System.out.println(plot.descaleX(e.getX()) + "/" + plot.descaleY(e.getY()));
                 double timeInMinues = plot.descaleX(e.getX());
-                int frame = dataSet.getFirstFrameAfterTime(timeInMinues * 60);
+                int frame = dataSet.getFirstFrameAfterTimeInSeconds(timeInMinues * 60);
 
                 dataSet.getThumbnails().setT(frame);
 

@@ -120,6 +120,11 @@
 			<artifactId>clij-core</artifactId>
 			<version>1.4.3</version>
 		</dependency>
+		<dependency>
+			<groupId>de.mpicbg.rhaase</groupId>
+			<artifactId>postprocessing-utilities</artifactId>
+			<version>0.4.7</version>
+		</dependency>
 	</dependencies>
 
 	<repositories>

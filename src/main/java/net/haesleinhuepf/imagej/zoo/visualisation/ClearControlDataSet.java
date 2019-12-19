@@ -29,11 +29,13 @@ public class ClearControlDataSet {
     private int[] indizes;
     private double[] timesInSeconds;
     private double[] timesInMinutes;
+    private double[] timesInHours;
+    private double[] frameDelayInSeconds;
+    private double[] framesPerMinute;
     private double maxTimeInSeconds;
     private long[] widths;
     private long[] heights;
     private long[] depths;
-    private double[] framesPerMinute = null;
 
     private double[] voxelDimXs;
     private double[] voxelDimYs;
@@ -69,6 +71,9 @@ public class ClearControlDataSet {
         indizes = new int[index.size()];
         timesInSeconds = new double[index.size()];
         timesInMinutes = new double[index.size()];
+        timesInHours = new double[index.size()];
+        frameDelayInSeconds = new double[index.size()];
+        framesPerMinute = new double[index.size()];
         widths = new long[index.size()];
         heights = new long[index.size()];
         depths = new long[index.size()];
@@ -87,6 +92,11 @@ public class ClearControlDataSet {
             indizes[count] = Integer.parseInt(tabSeparated[0].trim());
             timesInSeconds[count] = Double.parseDouble(tabSeparated[1].trim());
             timesInMinutes[count] = timesInSeconds[count] / 60;
+            timesInHours[count] = timesInMinutes[count] / 60;
+            if (count > 0) {
+                frameDelayInSeconds[count] = timesInSeconds[count] - timesInSeconds[count - 1];
+                framesPerMinute[count] = 60.0 / frameDelayInSeconds[count];
+            }
             maxTimeInSeconds = timesInSeconds[count];
 
             String sizes = tabSeparated[2];
@@ -177,24 +187,14 @@ public class ClearControlDataSet {
     public double[] getTimesInMinutes() {
         return timesInMinutes;
     }
-
+    public double[] getTimesInHours() {
+        return timesInHours;
+    }
+    public double[] getFrameDelayInSeconds() {
+        return frameDelayInSeconds;
+    }
 
     public double[] getFramesPerMinute() {
-        if (framesPerMinute == null) {
-            framesPerMinute = new double[((int) (maxTimeInSeconds / 60)) + 1];
-
-            int lastIndex = 0;
-            int frameCount = 0;
-            for (int i = 0; i < timesInSeconds.length; i++) {
-                int currentIndex = (int) (timesInSeconds[i] / 60);
-                frameCount++;
-                if (currentIndex != lastIndex) {
-                    framesPerMinute[currentIndex] = frameCount;
-                    frameCount = 0;
-                }
-                lastIndex = currentIndex;
-            }
-        }
         return framesPerMinute;
     }
 
@@ -206,7 +206,7 @@ public class ClearControlDataSet {
         return array;
     }
 
-    public int getFirstFrameAfterTime(double timeInSeconds) {
+    public int getFirstFrameAfterTimeInSeconds(double timeInSeconds) {
         for (int i = 0; i < timesInSeconds.length; i++) {
             if (timesInSeconds[i] > timeInSeconds) {
                 return i;
