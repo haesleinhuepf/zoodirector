@@ -1,19 +1,9 @@
-package net.haesleinhuepf.imagej.zoo.visualisation;
+package net.haesleinhuepf.imagej.zoo.data;
 
 import fiji.util.gui.GenericDialogPlus;
-import ij.IJ;
 import ij.ImageJ;
-import ij.ImagePlus;
 import ij.Prefs;
-import ij.gui.GenericDialog;
-import ij.gui.Plot;
-import ij.gui.PlotWindow;
 import ij.plugin.PlugIn;
-
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.util.ArrayList;
-import java.util.Arrays;
 
 public class ClearControlDataSetOpener implements PlugIn {
     private static String path = Prefs.getDefaultDirectory();

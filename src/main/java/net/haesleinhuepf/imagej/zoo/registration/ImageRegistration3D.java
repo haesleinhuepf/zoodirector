@@ -10,8 +10,7 @@ import ij.measure.ResultsTable;
 import ij.plugin.PlugIn;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clijx.CLIJx;
-import net.haesleinhuepf.imagej.zoo.visualisation.ClearControlDataSet;
-import net.haesleinhuepf.imagej.zoo.visualisation.ClearControlDataSetOpener;
+import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
 import net.imglib2.realtransform.AffineTransform3D;
 
 import javax.swing.*;

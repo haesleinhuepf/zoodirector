@@ -1,5 +1,6 @@
 package net.haesleinhuepf.explorer.tree.factories;
 
+import net.haesleinhuepf.explorer.tree.TreeBuilder;
 import net.haesleinhuepf.explorer.tree.nodes.AbstractTreeNode;
 import net.haesleinhuepf.explorer.tree.nodes.ImagePlusTreeNode;
 import net.haesleinhuepf.explorer.tree.nodes.RootTreeNode;
@@ -7,6 +8,10 @@ import ij.ImagePlus;
 import ij.plugin.Commands;
 
 public class ImagePlusTreeNodeFactory extends AbstractTreeNodeFactory{
+
+	public ImagePlusTreeNodeFactory(TreeBuilder treeBuilder) {
+		super(treeBuilder);
+	}
 	
 	@Override
 	public AbstractTreeNode copyExisting(AbstractTreeNode parent, AbstractTreeNode treeNode) {
@@ -14,7 +19,7 @@ public class ImagePlusTreeNodeFactory extends AbstractTreeNodeFactory{
 		{
 			if (treeNode instanceof ImagePlusTreeNode)
 			{
-				ImagePlusTreeNode iptn = new ImagePlusTreeNode(tree, ((ImagePlusTreeNode) treeNode).getImagePlus(), parent);
+				ImagePlusTreeNode iptn = new ImagePlusTreeNode(getTree(), ((ImagePlusTreeNode) treeNode).getImagePlus(), parent);
 				parent.somethingChanged(iptn);
 				return iptn;
 			}
@@ -24,7 +29,7 @@ public class ImagePlusTreeNodeFactory extends AbstractTreeNodeFactory{
 
 	@Override
 	public boolean couldCreateNewWithParent(AbstractTreeNode parent, Object object) {
-		return (parent instanceof RootTreeNode) && (object == null || object instanceof ImagePlus);
+		return (object instanceof ImagePlus);
 	}
 
 	@Override
@@ -40,7 +45,7 @@ public class ImagePlusTreeNodeFactory extends AbstractTreeNodeFactory{
 		}
 		else if (object instanceof ImagePlus)
 		{
-			return new ImagePlusTreeNode(tree, (ImagePlus)object, parent);
+			return new ImagePlusTreeNode(getTree(), (ImagePlus)object, parent);
 		}
 		return null;
 	}

@@ -3,6 +3,7 @@ package net.haesleinhuepf.imagej.zoo.visualisation;
 import ij.IJ;
 import ij.gui.Plot;
 import ij.gui.PlotWindow;
+import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -21,26 +22,37 @@ public class ClearControlInteractivePlot {
     }
 
     public void show() {
-        Plot plot = new Plot(title, "Time / minutes", title);
-        plot.add("-", xTimesInMinutes, yValues);
+        getPlotWindow().show();
+    }
 
-        PlotWindow window = plot.show();
-        window.getCanvas().addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                //System.out.println(e.getX() + "/" + e.getY());
-                //System.out.println(plot.descaleX(e.getX()) + "/" + plot.descaleY(e.getY()));
-                double timeInMinues = plot.descaleX(e.getX());
-                int frame = dataSet.getFirstFrameAfterTimeInSeconds(timeInMinues * 60);
+    Plot plot = null;
+    PlotWindow plotWindow = null;
+    public PlotWindow getPlotWindow() {
+        if (plot == null) {
+            plot = new Plot(title, "Time / minutes", title);
+            //plot.getImagePlus().hide();
+            plot.add("-", xTimesInMinutes, yValues);
 
-                dataSet.getThumbnails().setT(frame);
+            plotWindow = plot.show();
+            plotWindow.getCanvas().addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    //System.out.println(e.getX() + "/" + e.getY());
+                    //System.out.println(plot.descaleX(e.getX()) + "/" + plot.descaleY(e.getY()));
+                    double timeInMinues = plot.descaleX(e.getX());
+                    int frame = dataSet.getFirstFrameAfterTimeInSeconds(timeInMinues * 60);
 
-                dataSet.getImageData().setT(frame);
-                IJ.run(dataSet.getImageData(), "Enhance Contrast", "saturated=0.35");
+                    dataSet.setCurrentFrame(frame);
 
-                super.mouseClicked(e);
-            }
-        });
-        dataSet.addPlot(plot);
+                    super.mouseClicked(e);
+                }
+            });
+            dataSet.addPlot(plot);
+        }
+        return plotWindow;
+    }
+
+    public String getName() {
+        return title;
     }
 }

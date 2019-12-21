@@ -1,14 +1,15 @@
-package net.haesleinhuepf.imagej.zoo.visualisation;
+package net.haesleinhuepf.imagej.zoo.data;
 
 import ij.*;
 import ij.gui.NewImage;
 import ij.gui.Plot;
 import ij.gui.Roi;
-import ij.io.Opener;
 import ij.measure.ResultsTable;
 import ij.plugin.Duplicator;
 import ij.plugin.FolderOpener;
 import ij.plugin.HyperStackConverter;
+import net.haesleinhuepf.imagej.zoo.visualisation.ClearControlInteractivePlot;
+import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
 
 import java.awt.*;
 import java.io.File;
@@ -44,6 +45,7 @@ public class ClearControlDataSet {
     private double[] voxelDimZs;
     private String path;
     private String dataset;
+    private int currentFrame;
 
     public ClearControlDataSet(String path, String dataset) {
         this.path = path;
@@ -267,6 +269,27 @@ public class ClearControlDataSet {
         }
     }
 
+    public String getName() {
+        return dataset;
+    }
+
+    public void setCurrentFrame(int frame) {
+
+        if (currentFrame != frame) {
+            currentFrame = frame;
+            if (thumbnails != null && thumbnails.getNFrames() > frame) {
+                thumbnails.setT(frame + 1);
+            }
+
+            if (data != null && data.getNFrames() > frame) {
+                data.setT(frame + 1);
+                IJ.run(data, "Enhance Contrast", "saturated=0.35");
+            }
+            refreshPlots();
+        }
+
+    }
+
     private class CCImpListener implements ImageListener {
         boolean acting = false;
         @Override
@@ -286,18 +309,12 @@ public class ClearControlDataSet {
             }
             if (imp == data) {
                 acting = true;
-                if (thumbnails!= null) {
-                    thumbnails.setT(data.getT());
-                }
-                refreshPlots();
+                setCurrentFrame(data.getT());
                 acting = false;
             }
             if (imp == thumbnails) {
                 acting = true;
-                if (data!= null) {
-                    data.setT(thumbnails.getT());
-                }
-                refreshPlots();
+                setCurrentFrame(thumbnails.getT());
                 acting = false;
             }
         }
@@ -313,8 +330,7 @@ public class ClearControlDataSet {
             return;
         }
         for (Plot plot : plots) {
-            int f = data.getFrame();
-            double timeInMinutes = getTimesInMinutes()[f];
+            double timeInMinutes = getTimesInMinutes()[currentFrame];
             double x = plot.scaleXtoPxl(timeInMinutes);
             Roi roi = new Roi(x, 0, 1, plot.getImagePlus().getHeight() - 20);
             roi.setStrokeColor(Color.red);
@@ -322,6 +338,7 @@ public class ClearControlDataSet {
         }
     }
 
+    @Deprecated
     public void show() {
         ImagePlus imp = getImageData();
         imp.setZ(imp.getNSlices() / 2);

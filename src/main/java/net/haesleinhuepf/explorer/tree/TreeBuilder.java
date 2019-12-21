@@ -2,14 +2,18 @@ package net.haesleinhuepf.explorer.tree;
 
 import net.haesleinhuepf.explorer.tree.factories.AbstractTreeNodeFactory;
 import net.haesleinhuepf.explorer.tree.nodes.AbstractTreeNode;
+import net.haesleinhuepf.explorer.tree.nodes.RootTreeNode;
 
 import javax.swing.*;
 import java.util.ArrayList;
 
 public class TreeBuilder {
-	
+
+	private JTree tree;
+
 	ArrayList<AbstractTreeNodeFactory> factories = new ArrayList<AbstractTreeNodeFactory>();
-	
+	private RootTreeNode rootNode;
+
 	public void addFactory(AbstractTreeNodeFactory factory)
 	{
 		factories.add(factory);
@@ -67,10 +71,14 @@ public class TreeBuilder {
 	}
 
 	public void setTree(JTree tree) {
-		for (int i = 0; i < factories.size(); i++)
-		{
-			AbstractTreeNodeFactory factory = factories.get(i);
-			factory.setTree(tree);
-		}
+		this.tree = tree;
+	}
+
+	public JTree getTree() {
+		return tree;
+	}
+
+	public RootTreeNode getRootNode() {
+		return (RootTreeNode) tree.getModel().getRoot();
 	}
 }

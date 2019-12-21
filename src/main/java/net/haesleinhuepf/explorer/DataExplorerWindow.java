@@ -29,6 +29,7 @@ public class DataExplorerWindow extends JFrame {
 	private JSplitPane splitPane;
 
 	private TreeBuilder treeBuilder;
+	private AbstractTreeNode rootNode;
 
 	Timer heartbeat = null;
 	int delay = 1000; // milliseconds
@@ -176,7 +177,7 @@ public class DataExplorerWindow extends JFrame {
 
 	public void initializeTree(/* AbstractTreeNode tn */) {
 
-		AbstractTreeNode rootNode = new RootTreeNode(tree);
+		rootNode = new RootTreeNode(tree);
 		
 		addImagePlussesFromWindowManager(rootNode);
 
@@ -339,11 +340,16 @@ public class DataExplorerWindow extends JFrame {
 		}
 	}
 
+	private long lastClick = 0;
 	private void currentTreeNodeChanged(AbstractTreeNode treeNode) {
 		currentTreeNode = treeNode;
 
 		// Invoke click on item
 		treeNode.clicked();
+		if (System.currentTimeMillis() - lastClick < delay) {
+			treeNode.doubleClicked();
+		}
+		lastClick = System.currentTimeMillis();
 
 		// Show its edit-panel
 		if (treeNode instanceof PropertiesManipulatable) {
@@ -371,6 +377,9 @@ public class DataExplorerWindow extends JFrame {
 
 	private void addImagePlussesFromWindowManager(AbstractTreeNode rootNode) {
 		int[] idList = WindowManager.getIDList();
+		if (idList == null) {
+			return;
+		}
 		for (int i = 0; i < idList.length; i++) {
 			ImagePlus imp = WindowManager.getImage(idList[i]);
 			AbstractTreeNodeFactory factory = treeBuilder.getFactoryToCreateNewTreeNode(rootNode, imp);
@@ -395,7 +404,6 @@ public class DataExplorerWindow extends JFrame {
 			return ret;
 		}
 	}
-	
 
 	NewImageListener newImageListener;
 	

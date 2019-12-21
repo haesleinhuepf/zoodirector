@@ -1,9 +1,14 @@
 package net.haesleinhuepf.explorer.tree.factories;
 
+import net.haesleinhuepf.explorer.tree.TreeBuilder;
 import net.haesleinhuepf.explorer.tree.nodes.AbstractTreeNode;
 import net.haesleinhuepf.explorer.tree.nodes.RootTreeNode;
 
 public class RootTreeNodeFactory extends AbstractTreeNodeFactory{
+
+	public RootTreeNodeFactory(TreeBuilder treeBuilder) {
+		super(treeBuilder);
+	}
 
 	@Override
 	public RootTreeNode createNew(AbstractTreeNode parent, Object object) {
@@ -11,7 +16,7 @@ public class RootTreeNodeFactory extends AbstractTreeNodeFactory{
 		{
 			return null;
 		}
-		return new RootTreeNode(tree);
+		return new RootTreeNode(getTree());
 	}
 
 	@Override

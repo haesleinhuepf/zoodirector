@@ -1,21 +1,14 @@
 package net.haesleinhuepf.imagej.zoo.measurement;
 
-import autopilot.image.DoubleArrayImage;
 import autopilot.measures.FocusMeasures;
-import de.mpicbg.rhaase.spimcat.postprocessing.fijiplugins.imageanalysis.quality.MeasureQualityInTilesPlugin;
-import de.mpicbg.rhaase.spimcat.postprocessing.fijiplugins.imageanalysis.quality.MeasureQualityPerSlicePlugin;
-import de.mpicbg.rhaase.utils.DoubleArrayImageImgConverter;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.measure.ResultsTable;
-import javafx.beans.property.ReadOnlySetProperty;
 import net.haesleinhuepf.clij.CLIJ;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
-import net.haesleinhuepf.clij.macro.modules.Clear;
-import net.haesleinhuepf.imagej.zoo.visualisation.ClearControlDataSet;
-import net.haesleinhuepf.imagej.zoo.visualisation.ClearControlDataSetOpener;
-import net.imglib2.view.Views;
+import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
+import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
 
 public class ImageQualityMeasurements implements Runnable {
 

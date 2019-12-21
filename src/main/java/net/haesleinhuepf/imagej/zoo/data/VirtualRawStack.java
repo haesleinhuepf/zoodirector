@@ -1,4 +1,4 @@
-package net.haesleinhuepf.imagej.zoo.visualisation;
+package net.haesleinhuepf.imagej.zoo.data;
 
 import ij.measure.Calibration;
 import ij.plugin.*;

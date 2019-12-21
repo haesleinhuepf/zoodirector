@@ -1,9 +1,11 @@
-package net.haesleinhuepf.imagej.zoo.visualisation;
+package net.haesleinhuepf.imagej.zoo.measurement;
 
 import de.mpicbg.rhaase.spimcat.postprocessing.fijiplugins.plotting.PlotTableOverTime;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Plot;
+import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
+import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
 import org.apache.commons.math3.stat.descriptive.rank.Max;
 import org.apache.commons.math3.stat.descriptive.rank.Min;
 

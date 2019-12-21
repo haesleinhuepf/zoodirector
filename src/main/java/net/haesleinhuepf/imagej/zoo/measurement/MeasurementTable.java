@@ -1,7 +1,8 @@
-package net.haesleinhuepf.imagej.zoo.visualisation;
+package net.haesleinhuepf.imagej.zoo.measurement;
 
 import ij.measure.ResultsTable;
 
+import java.io.File;
 import java.io.IOException;
 
 public class MeasurementTable {
@@ -31,5 +32,9 @@ public class MeasurementTable {
             }
         }
         return null;
+    }
+
+    public String getName() {
+        return new File(filename).getName();
     }
 }
