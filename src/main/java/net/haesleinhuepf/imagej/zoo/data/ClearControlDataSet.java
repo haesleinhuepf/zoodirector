@@ -149,12 +149,17 @@ public class ClearControlDataSet {
     private ImagePlus data = null;
     public ImagePlus getImageData(){
         if (data == null) {
-            data = VirtualRawStackOpener.open(
-                    path + "stacks/" + dataset + "/",
-                    (int) widths[0], (int) heights[0], (int) depths[0],
-                    timesInSeconds.length, 16, true,
-                    voxelDimXs[0], voxelDimYs[1], voxelDimZs[0], "micron"
-            );
+            try {
+                data = VirtualRawStackOpener.open(
+                        path + "stacks/" + dataset + "/",
+                        (int) widths[0], (int) heights[0], (int) depths[0],
+                        timesInSeconds.length, 16, true,
+                        voxelDimXs[0], voxelDimYs[1], voxelDimZs[0], "micron"
+                );
+            } catch (NullPointerException e) {
+                data = null;
+                System.out.println("Raw data couldn't be opened: " + path + "stacks/" + dataset + "/");
+            }
         }
         return data;
     }
@@ -326,11 +331,13 @@ public class ClearControlDataSet {
     }
 
     private void refreshPlots() {
+        System.out.println("Refresh plots " + currentFrame);
         if (data == null) {
             return;
         }
         for (Plot plot : plots) {
             double timeInMinutes = getTimesInMinutes()[currentFrame];
+            System.out.println("p" + plot);
             double x = plot.scaleXtoPxl(timeInMinutes);
             Roi roi = new Roi(x, 0, 1, plot.getImagePlus().getHeight() - 20);
             roi.setStrokeColor(Color.red);

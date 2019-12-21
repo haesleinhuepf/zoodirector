@@ -14,8 +14,8 @@
 
 	<groupId>net.haesleinhuepf</groupId>
 	<!-- note: the artifactId must contain an underscore _ to make ImageJ handle it correctly.-->
-	<artifactId>zoodirector</artifactId>
-	<version>0.1.0</version>
+	<artifactId>zoodirector_</artifactId>
+	<version>0.2.0</version>
 
 	<name>zoodirector</name>
 	<description>zoodirector</description>
@@ -103,7 +103,7 @@
 		<dependency>
 			<groupId>net.haesleinhuepf</groupId>
 			<artifactId>clij-advanced-filters_</artifactId>
-			<version>0.16.0</version>
+			<version>0.16.2</version>
 		</dependency>
 		<dependency>
 			<groupId>net.clearcontrol</groupId>
@@ -123,7 +123,7 @@
 		<dependency>
 			<groupId>de.mpicbg.rhaase</groupId>
 			<artifactId>postprocessing-utilities</artifactId>
-			<version>0.4.7</version>
+			<version>0.4.8</version>
 		</dependency>
 		<dependency>
 			<groupId>de.mpicbg.rhaase</groupId>

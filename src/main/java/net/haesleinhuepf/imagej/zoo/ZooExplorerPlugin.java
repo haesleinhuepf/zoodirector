@@ -13,6 +13,7 @@ public class ZooExplorerPlugin implements PlugIn {
     @Override
     public void run(String arg) {
         String rootfolder = IJ.getDirectory("Root folder");
+        open(rootfolder);
     }
 
     public static void open(String rootfolder) {
