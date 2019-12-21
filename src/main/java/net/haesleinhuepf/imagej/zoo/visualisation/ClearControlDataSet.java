@@ -5,6 +5,8 @@ import ij.gui.NewImage;
 import ij.gui.Plot;
 import ij.gui.Roi;
 import ij.io.Opener;
+import ij.measure.ResultsTable;
+import ij.plugin.Duplicator;
 import ij.plugin.FolderOpener;
 import ij.plugin.HyperStackConverter;
 
@@ -155,6 +157,17 @@ public class ClearControlDataSet {
         return data;
     }
 
+    public ImagePlus getImageData(int frame) {
+        ImagePlus imp = getImageData();
+
+        ImageStack stack = imp.getStack();
+        if (stack instanceof VirtualRawStack) {
+            return ((VirtualRawStack) stack).cachedStack(frame);
+        } else {
+            return new Duplicator().run(imp, 1, 1, 1, imp.getNSlices(), frame, frame);
+        }
+    }
+
     private ImagePlus thumbnails = null;
     public ImagePlus getThumbnails() {
         if (thumbnails == null) {
@@ -220,7 +233,7 @@ public class ClearControlDataSet {
         File folder = new File(path);
         for (File file : folder.listFiles()) {
             String filename = file.getName().toLowerCase();
-            if (filename.endsWith(".tsv") || filename.endsWith(".tsv")) {
+            if (filename.endsWith(".tsv") || filename.endsWith(".csv")) {
                 list.add(file.getName());
             }
         }
@@ -243,6 +256,15 @@ public class ClearControlDataSet {
 
         System.out.println("time0: " + ccds.getTimesInSeconds()[0]);
         System.out.println("time1: " + ccds.getTimesInSeconds()[1]);
+    }
+
+    public void saveMeasurementTable(ResultsTable table, String filename) {
+        Prefs.dontSaveRowNumbers = false;
+        try {
+            table.saveAs(path + filename);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private class CCImpListener implements ImageListener {
