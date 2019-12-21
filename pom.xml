@@ -125,6 +125,11 @@
 			<artifactId>postprocessing-utilities</artifactId>
 			<version>0.4.7</version>
 		</dependency>
+		<dependency>
+			<groupId>de.mpicbg.rhaase</groupId>
+			<artifactId>imagequalitymetrics-microscopeautopilot</artifactId>
+			<version>0.2.0</version>
+		</dependency>
 	</dependencies>
 
 	<repositories>
