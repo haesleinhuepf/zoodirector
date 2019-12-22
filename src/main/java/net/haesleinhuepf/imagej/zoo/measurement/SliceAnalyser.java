@@ -27,7 +27,7 @@ public class SliceAnalyser implements Runnable {
         DoubleArrayImage image = new DoubleArrayImageImgConverter(Views.iterable(rai)).getDoubleArrayImage();
 
         for (FocusMeasures.FocusMeasure focusMeasure : features) {
-            System.out.println("Determining " + focusMeasure.getLongName());
+            //System.out.println("Determining " + focusMeasure.getLongName());
             double focusMeasureValue = FocusMeasures.computeFocusMeasure(focusMeasure, image);
             table.addValue(focusMeasure.getLongName(), focusMeasureValue);
         }
