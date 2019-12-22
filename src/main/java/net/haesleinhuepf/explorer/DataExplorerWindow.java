@@ -1,5 +1,6 @@
 package net.haesleinhuepf.explorer;
 
+import ij.IJ;
 import net.haesleinhuepf.explorer.tree.TreeBuilder;
 import net.haesleinhuepf.explorer.tree.TreeModel;
 import net.haesleinhuepf.explorer.tree.factories.AbstractTreeNodeFactory;
@@ -15,10 +16,7 @@ import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import java.awt.event.*;
 import java.util.ArrayList;
 
 public class DataExplorerWindow extends JFrame {
@@ -50,11 +48,23 @@ public class DataExplorerWindow extends JFrame {
 		});
 	}
 
+	private void onClose(){
+		System.out.println("onClose");
+	}
+
 	/**
 	 * Create the frame.
 	 */
 	public DataExplorerWindow() {
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosed(WindowEvent e) {
+				onClose();
+			}
+		});
+
+		//setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 450, 563);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
