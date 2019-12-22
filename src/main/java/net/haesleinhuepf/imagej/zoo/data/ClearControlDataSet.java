@@ -57,16 +57,16 @@ public class ClearControlDataSet {
 
         this.dataset = dataset;
 
-        File folder = new File(path);
+        File folder = new File(this.path);
         if (!folder.exists()) {
-            throw new IllegalArgumentException("Folder " + path + " doesn't exist.");
+            throw new IllegalArgumentException("Folder " + this.path + " doesn't exist.");
         }
 
         // ---------------------------------------------------------------------------
         // read index
         List<String> index;
         try {
-            index = Files.readAllLines(Paths.get(path + dataset + ".index.txt"));
+            index = Files.readAllLines(Paths.get(this.path + dataset + ".index.txt"));
         } catch (IOException e) {
             throw new IllegalArgumentException(e.getMessage());
             //e.printStackTrace();
@@ -115,7 +115,7 @@ public class ClearControlDataSet {
         // ---------------------------------------------------------------------------
         // read meta data
         try {
-            index = Files.readAllLines(Paths.get(path + dataset + ".metadata.txt"));
+            index = Files.readAllLines(Paths.get(this.path + dataset + ".metadata.txt"));
         } catch (IOException e) {
             throw new IllegalArgumentException(e.getMessage());
             //e.printStackTrace();
