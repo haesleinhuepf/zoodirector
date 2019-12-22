@@ -92,7 +92,7 @@ public class VirtualRawStack extends ij.VirtualStack {
 
     private ImagePlus cache = null;
     private int cacheN = -1;
-    private ImagePlus cachedStack(int n) {
+    ImagePlus cachedStack(int n) {
         if (n >= filenames.size()) {
             return new ImagePlus("", super.getProcessor(n));
         }
