@@ -62,16 +62,18 @@ public class VirtualRawStack extends ij.VirtualStack {
 
         filenames = new ArrayList<>();
         File folder = new File(foldername);
-        for (File file : folder.listFiles()) {
-            String filename = file.getName();
-            if (filename.startsWith(".")||filename.toLowerCase().compareTo("thumbs.db")==0||filename.endsWith(".txt")) {
-                continue;
+        if (folder.exists()) {
+            for (File file : folder.listFiles()) {
+                String filename = file.getName();
+                if (filename.startsWith(".") || filename.toLowerCase().compareTo("thumbs.db") == 0 || filename.endsWith(".txt")) {
+                    continue;
+                }
+                filenames.add(filename);
             }
-            filenames.add(filename);
-        }
-        if (filenames.size() < numberOfImageStacks) {
-            this.numberOfImageStacks = filenames.size();
+            if (filenames.size() < numberOfImageStacks) {
+                this.numberOfImageStacks = filenames.size();
 
+            }
         }
         Collections.sort(filenames);
     }
@@ -82,13 +84,18 @@ public class VirtualRawStack extends ij.VirtualStack {
         int sliceNumber = n % depth;
 
         ImagePlus imp = cachedStack(stackNumber);
-        imp.setZ(sliceNumber);
+        if (sliceNumber <= imp.getNSlices()) {
+            imp.setZ(sliceNumber);
+        }
         return imp.getProcessor();
     }
 
     private ImagePlus cache = null;
     private int cacheN = -1;
-    ImagePlus cachedStack(int n) {
+    private ImagePlus cachedStack(int n) {
+        if (n >= filenames.size()) {
+            return new ImagePlus("", super.getProcessor(n));
+        }
         synchronized (this) {
             if (cacheN != n) {
                 // load ImagePlus
