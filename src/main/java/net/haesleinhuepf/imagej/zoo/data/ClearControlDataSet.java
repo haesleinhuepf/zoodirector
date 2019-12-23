@@ -267,6 +267,7 @@ public class ClearControlDataSet {
 
     public void saveMeasurementTable(ResultsTable table, String filename) {
         Prefs.dontSaveRowNumbers = false;
+        new File(path + filename).getParentFile().mkdirs();
         try {
             table.saveAs(path + filename);
         } catch (IOException e) {
