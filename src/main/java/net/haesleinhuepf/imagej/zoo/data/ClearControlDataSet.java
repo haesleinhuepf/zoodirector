@@ -339,6 +339,9 @@ public class ClearControlDataSet {
     public void addPlot(Plot plot) {
         plots.add(plot);
     }
+    public void removePlot(Plot plot) {
+        plots.remove(plot);
+    }
 
     private void refreshPlots() {
         System.out.println("Refresh plots " + currentFrame);
@@ -346,12 +349,17 @@ public class ClearControlDataSet {
             return;
         }
         for (Plot plot : plots) {
-            double timeInMinutes = getTimesInMinutes()[currentFrame];
-            System.out.println("p" + plot);
-            double x = plot.scaleXtoPxl(timeInMinutes);
-            Roi roi = new Roi(x, 0, 1, plot.getImagePlus().getHeight() - 20);
-            roi.setStrokeColor(Color.red);
-            plot.getImagePlus().setRoi(roi);
+            double[] times = getTimesInMinutes();
+            if (times.length > currentFrame) {
+                double timeInMinutes = getTimesInMinutes()[currentFrame];
+                System.out.println("p" + plot);
+                double x = plot.scaleXtoPxl(timeInMinutes);
+                Roi roi = new Roi(x, 0, 1, plot.getImagePlus().getHeight() - 20);
+                roi.setStrokeColor(Color.red);
+                plot.getImagePlus().setRoi(roi);
+            } else {
+                plot.getImagePlus().killRoi();
+            }
         }
     }
 

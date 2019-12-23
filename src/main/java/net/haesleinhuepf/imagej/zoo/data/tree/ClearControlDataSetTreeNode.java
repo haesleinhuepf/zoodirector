@@ -2,13 +2,17 @@ package net.haesleinhuepf.imagej.zoo.data.tree;
 
 import ij.ImagePlus;
 import net.haesleinhuepf.explorer.tree.TreeBuilder;
+import net.haesleinhuepf.explorer.tree.manipulators.PropertiesManipulatable;
 import net.haesleinhuepf.explorer.tree.nodes.AbstractTreeNode;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlSession;
+import net.haesleinhuepf.imagej.zoo.data.interactors.DataSetHandler;
 import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
 import net.haesleinhuepf.imagej.zoo.measurement.Measurements;
 
-public class ClearControlDataSetTreeNode extends AbstractTreeNode {
+import javax.swing.*;
+
+public class ClearControlDataSetTreeNode extends AbstractTreeNode implements PropertiesManipulatable {
 
     private TreeBuilder treeBuilder;
     private ClearControlDataSet dataSet;
@@ -54,5 +58,10 @@ public class ClearControlDataSetTreeNode extends AbstractTreeNode {
 
     public ClearControlDataSet getDataSet() {
         return dataSet;
+    }
+
+    @Override
+    public JPanel getManipulatorPanel() {
+        return new DataSetHandler(dataSet);
     }
 }

@@ -40,7 +40,7 @@ public class PlotTreeNode extends AbstractTreeNode{
 			plot.addPoints(xData, yData, Plot.LINE);
 			plot.setColor(Color.blue);
 			plot.addPoints(xData, yData, Plot.BOX);
-			//plot.draw();
+			//generateThumbnails.draw();
 		}
 		System.out.println("clicked");
 		plot.show();

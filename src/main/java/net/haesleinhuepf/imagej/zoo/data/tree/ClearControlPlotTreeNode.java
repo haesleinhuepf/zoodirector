@@ -30,13 +30,13 @@ public class ClearControlPlotTreeNode extends AbstractTreeNode implements Proper
 
     @Override
     public void clicked() {
-        System.out.println("plot clicked");
+        System.out.println("generateThumbnails clicked");
 
     }
 
     @Override
     public void doubleClicked() {
-        System.out.println("plot dbl clicked");
+        System.out.println("generateThumbnails dbl clicked");
         plot.show();
     }
 

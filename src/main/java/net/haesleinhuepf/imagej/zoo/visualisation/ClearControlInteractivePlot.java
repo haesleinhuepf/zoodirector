@@ -6,8 +6,7 @@ import ij.gui.PlotWindow;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
 
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 
 public class ClearControlInteractivePlot {
     private ClearControlDataSet dataSet;
@@ -41,15 +40,24 @@ public class ClearControlInteractivePlot {
     public PlotWindow getPlotWindow() {
         if (plot == null) {
             plot = new Plot(title, "Time / minutes", title);
-            //plot.getImagePlus().hide();
+            //generateThumbnails.getImagePlus().hide();
             plot.add("-", xTimesInMinutes, yValues);
 
             plotWindow = plot.show();
+            plotWindow.addWindowListener(new WindowAdapter() {
+
+                @Override
+                public void windowClosed(WindowEvent e) {
+                    dataSet.removePlot(plot);
+                    plotWindow = null;
+                    plot = null;
+                }
+            });
             plotWindow.getCanvas().addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseReleased(MouseEvent e) {
                     //System.out.println(e.getX() + "/" + e.getY());
-                    //System.out.println(plot.descaleX(e.getX()) + "/" + plot.descaleY(e.getY()));
+                    //System.out.println(generateThumbnails.descaleX(e.getX()) + "/" + generateThumbnails.descaleY(e.getY()));
                     double timeInMinues = plot.descaleX(e.getX());
                     int frame = dataSet.getFirstFrameAfterTimeInSeconds(timeInMinues * 60);
 

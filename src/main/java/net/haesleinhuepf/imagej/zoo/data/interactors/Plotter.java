@@ -35,26 +35,20 @@ import java.io.File;
  */
 public class Plotter extends AbstractManipulator {
 
-    private double startTime = 0;
-    private double endTime = 60;
+    static double startTime = 0;
+    static double endTime = 60;
 
-    private String timeUnit = "Minutes";
+    static String timeUnit = "Minutes";
 
-    private int plotWidth = 640;
-    private int plotHeight = 480;
+    static int plotWidth = 640;
+    static int plotHeight = 480;
 
-    private int numberOfImages = 100;
-    private boolean saveImages = true;
+    static int numberOfImages = 100;
+    static boolean saveImages = true;
 
     public Plotter(ClearControlInteractivePlot plot) {
 
-        startTime = Prefs.get("net.haesleinhuepf.zoo.plotter.startTime", startTime);
-        endTime = Prefs.get("net.haesleinhuepf.zoo.plotter.endTime", endTime);
-        timeUnit = Prefs.getString("net.haesleinhuepf.zoo.plotter.timeUnit", timeUnit);
-        plotWidth = (int)Prefs.get("net.haesleinhuepf.zoo.plotter.plotWidth", plotWidth);
-        plotHeight = (int)Prefs.get("net.haesleinhuepf.zoo.plotter.plotHeight", plotHeight);
-        numberOfImages = (int)Prefs.get("net.haesleinhuepf.zoo.plotter.numberOfImages", numberOfImages);
-        saveImages = Prefs.get("net.haesleinhuepf.zoo.plotter.saveImages", saveImages?1:0) > 0;
+        readPrefs();
 
         int formLine = newFormLine();
         JLabel lblC = new JLabel("Plot over time");
@@ -71,6 +65,7 @@ public class Plotter extends AbstractManipulator {
         add(btnColor, "4, " + formLine);
 
     }
+
 
     private void generatePlot(ClearControlInteractivePlot plot) {
         GenericDialog gd = new GenericDialog("Plot over time");
@@ -94,12 +89,7 @@ public class Plotter extends AbstractManipulator {
         plotHeight = (int)gd.getNextNumber();
         saveImages = gd.getNextBoolean();
 
-        Prefs.set("net.haesleinhuepf.zoo.plotter.startTimeInMinutes", startTime);
-        Prefs.set("net.haesleinhuepf.zoo.plotter.endTimeInMinutes", endTime);
-        Prefs.set("net.haesleinhuepf.zoo.plotter.timeUnit", timeUnit);
-        Prefs.set("net.haesleinhuepf.zoo.plotter.plotWidth", plotWidth);
-        Prefs.set("net.haesleinhuepf.zoo.plotter.plotHeight", plotHeight);
-        Prefs.set("net.haesleinhuepf.zoo.plotter.saveImages", saveImages?1:0);
+        writePrefs();
 
 
         ImagePlus imp = plot(plot.getDataSet(),
@@ -116,6 +106,8 @@ public class Plotter extends AbstractManipulator {
         imp.setT(imp.getNFrames());
         imp.show();
     }
+
+
 
     public static ImagePlus plot(ClearControlDataSet dataSet, double startTime, double endTime, String timeUnit, int numberOfImages, MeasurementTable table, String title, int widthInPixels, int heightInPixels, boolean saveImages) {
 
@@ -206,5 +198,26 @@ public class Plotter extends AbstractManipulator {
         ImagePlus result = new ImagePlus(title, stack);
         return result;
 
+    }
+
+
+
+    static void readPrefs() {
+        startTime = Prefs.get("net.haesleinhuepf.zoo.plotter.startTime", startTime);
+        endTime = Prefs.get("net.haesleinhuepf.zoo.plotter.endTime", endTime);
+        timeUnit = Prefs.getString("net.haesleinhuepf.zoo.plotter.timeUnit", timeUnit);
+        plotWidth = (int)Prefs.get("net.haesleinhuepf.zoo.plotter.plotWidth", plotWidth);
+        plotHeight = (int)Prefs.get("net.haesleinhuepf.zoo.plotter.plotHeight", plotHeight);
+        numberOfImages = (int)Prefs.get("net.haesleinhuepf.zoo.plotter.numberOfImages", numberOfImages);
+        saveImages = Prefs.get("net.haesleinhuepf.zoo.plotter.saveImages", saveImages?1:0) > 0;
+    }
+
+    static void writePrefs() {
+        Prefs.set("net.haesleinhuepf.zoo.plotter.startTimeInMinutes", startTime);
+        Prefs.set("net.haesleinhuepf.zoo.plotter.endTimeInMinutes", endTime);
+        Prefs.set("net.haesleinhuepf.zoo.plotter.timeUnit", timeUnit);
+        Prefs.set("net.haesleinhuepf.zoo.plotter.plotWidth", plotWidth);
+        Prefs.set("net.haesleinhuepf.zoo.plotter.plotHeight", plotHeight);
+        Prefs.set("net.haesleinhuepf.zoo.plotter.saveImages", saveImages?1:0);
     }
 }
