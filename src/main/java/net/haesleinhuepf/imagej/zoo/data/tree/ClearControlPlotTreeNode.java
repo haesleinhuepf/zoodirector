@@ -2,14 +2,16 @@ package net.haesleinhuepf.imagej.zoo.data.tree;
 
 import ij.ImagePlus;
 import net.haesleinhuepf.explorer.tree.TreeBuilder;
+import net.haesleinhuepf.explorer.tree.manipulators.PropertiesManipulatable;
 import net.haesleinhuepf.explorer.tree.nodes.AbstractTreeNode;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
+import net.haesleinhuepf.imagej.zoo.data.interactors.Plotter;
 import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
 import net.haesleinhuepf.imagej.zoo.visualisation.ClearControlInteractivePlot;
 
 import javax.swing.*;
 
-public class ClearControlPlotTreeNode extends AbstractTreeNode {
+public class ClearControlPlotTreeNode extends AbstractTreeNode implements PropertiesManipulatable {
 
     private TreeBuilder treeBuilder;
     private ClearControlInteractivePlot plot;
@@ -38,7 +40,14 @@ public class ClearControlPlotTreeNode extends AbstractTreeNode {
         plot.show();
     }
 
+    @Override
     public Icon getIcon() {
         return new ImageIcon(Thread.currentThread().getContextClassLoader().getResource("table.png"));
+    }
+
+
+    @Override
+    public JPanel getManipulatorPanel() {
+        return new Plotter(plot);
     }
 }

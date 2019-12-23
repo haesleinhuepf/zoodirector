@@ -40,10 +40,10 @@ public class MeasurementTableTreeNode extends AbstractTreeNode {
         if (this.children == null || this.children.size() == 0) {
             for (String name : table.getColumnNames()) {
                 System.out.println(name);
-                double[] yData = table.getColumn(name);
-                double[] xTimeData = dataSet.getTimesInMinutes();
+                //double[] yData = table.getColumn(name);
+                //double[] xTimeData = dataSet.getTimesInMinutes();
 
-                ClearControlInteractivePlot plot = new ClearControlInteractivePlot(dataSet, name, xTimeData, yData);
+                ClearControlInteractivePlot plot = new ClearControlInteractivePlot(dataSet, name, table);
                 treeBuilder.getFactoryToCreateNewTreeNode(this, plot).createNew(this, plot);
 
                 //;

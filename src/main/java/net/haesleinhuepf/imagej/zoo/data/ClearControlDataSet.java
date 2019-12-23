@@ -8,6 +8,7 @@ import ij.measure.ResultsTable;
 import ij.plugin.Duplicator;
 import ij.plugin.FolderOpener;
 import ij.plugin.HyperStackConverter;
+import net.haesleinhuepf.imagej.zoo.ZooUtilities;
 import net.haesleinhuepf.imagej.zoo.visualisation.ClearControlInteractivePlot;
 import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
 
@@ -189,8 +190,7 @@ public class ClearControlDataSet {
 
             for (String thumbnailfolder : potentialThumbnailsFolders) {
                 if (new File(thumbnailfolder).exists() && new File(thumbnailfolder).listFiles().length > 1) {
-                    thumbnails = FolderOpener.open(thumbnailfolder, "virtual");
-                    thumbnails = HyperStackConverter.toHyperStack(thumbnails, 1, 1, thumbnails.getNSlices());
+                    thumbnails = ZooUtilities.openFolderStack(thumbnailfolder);
                     break;
                 }
             }
@@ -228,7 +228,7 @@ public class ClearControlDataSet {
 
     public int getFirstFrameAfterTimeInSeconds(double timeInSeconds) {
         for (int i = 0; i < timesInSeconds.length; i++) {
-            if (timesInSeconds[i] > timeInSeconds) {
+            if (timesInSeconds[i] >= timeInSeconds) {
                 return i;
             }
         }
@@ -380,11 +380,7 @@ public class ClearControlDataSet {
                     continue;
                 }
 
-                System.out.println("Column: " + column);
-                double[] yData = mt.getColumn(column);
-                double[] xTimeData = getTimesInMinutes();
-
-                new ClearControlInteractivePlot(this, column, xTimeData, yData).show();
+                new ClearControlInteractivePlot(this, column, mt).show();
             }
         }
     }

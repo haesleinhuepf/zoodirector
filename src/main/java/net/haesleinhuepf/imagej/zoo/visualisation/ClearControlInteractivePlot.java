@@ -4,6 +4,7 @@ import ij.IJ;
 import ij.gui.Plot;
 import ij.gui.PlotWindow;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
+import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
 
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -13,12 +14,22 @@ public class ClearControlInteractivePlot {
     private String title;
     private double[] yValues;
     private double[] xTimesInMinutes;
+    private MeasurementTable table;
 
     public ClearControlInteractivePlot(ClearControlDataSet dataSet, String title, double[] xTimesInMinutes, double[] yValues) {
         this.dataSet = dataSet;
         this.title = title;
         this.yValues = yValues;
         this.xTimesInMinutes = xTimesInMinutes;
+    }
+
+    public ClearControlInteractivePlot(ClearControlDataSet dataSet, String column, MeasurementTable table) {
+        this.dataSet = dataSet;
+        this.title = column;
+        this.table = table;
+
+        yValues = table.getColumn(column);
+        xTimesInMinutes = dataSet.getTimesInMinutes();
     }
 
     public void show() {
@@ -54,5 +65,13 @@ public class ClearControlInteractivePlot {
 
     public String getName() {
         return title;
+    }
+
+    public ClearControlDataSet getDataSet() {
+        return dataSet;
+    }
+
+    public MeasurementTable getMeasurementTable() {
+        return table;
     }
 }
