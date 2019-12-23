@@ -244,6 +244,15 @@ public class ClearControlDataSet {
                 list.add(file.getName());
             }
         }
+        folder = new File(path + "processed/");
+        if (folder.exists() && folder.isDirectory()) {
+            for (File file : folder.listFiles()) {
+                String filename = file.getName().toLowerCase();
+                if (filename.endsWith(".tsv") || filename.endsWith(".csv")) {
+                    list.add("processed/" + file.getName());
+                }
+            }
+        }
 
         String[] filenames = new String[list.size()];
         list.toArray(filenames);
