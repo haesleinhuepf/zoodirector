@@ -305,6 +305,10 @@ public class ClearControlDataSet {
 
     }
 
+    public MeasurementTable getMeasurement(String measurementFilename) {
+        return new MeasurementTable(this.path + measurementFilename);
+    }
+
     private class CCImpListener implements ImageListener {
         boolean acting = false;
         @Override

@@ -130,6 +130,15 @@
 			<artifactId>imagequalitymetrics-microscopeautopilot</artifactId>
 			<version>0.2.0</version>
 		</dependency>
+
+		<dependency>
+			<groupId>nz.ac.waikato.cms.weka</groupId>
+			<artifactId>weka-dev</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>sc.fiji</groupId>
+			<artifactId>Trainable_Segmentation</artifactId>
+		</dependency>
 	</dependencies>
 
 	<repositories>

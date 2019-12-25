@@ -22,11 +22,11 @@ public class Measurements {
         ClearControlDataSet dataSet = ClearControlDataSetOpener.open("C:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/", "C0opticsprefused");
         String outputFolder = "C:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/processed/";
 
-        int numberOfImages = 500;
-        int numberOfDays = 5;
+        int numberOfImages = 700;
+        int numberOfDays = 7;
 
-        double timeStepInMinutes = 1.0 * numberOfDays * 60 * 24 / numberOfImages;
-        int numberOfFrames = dataSet.getFirstFrameAfterTimeInSeconds(timeStepInMinutes * 60 * numberOfImages);
+        double timeStepInMinutes = 1.0 * numberOfDays * 60 * 24 / (numberOfImages - 1);
+        int numberOfFrames = dataSet.getFirstFrameAfterTimeInSeconds(timeStepInMinutes * 60 * numberOfImages) + 1;
 
         System.out.println("Number of frames: " + numberOfFrames);
 
