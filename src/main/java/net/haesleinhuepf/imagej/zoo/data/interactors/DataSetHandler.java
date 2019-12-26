@@ -7,6 +7,8 @@ import ij.gui.GenericDialog;
 import ij.plugin.HyperStackConverter;
 import net.haesleinhuepf.explorer.tree.manipulators.AbstractManipulator;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
+import net.haesleinhuepf.imagej.zoo.measurement.ImageQualityMeasurements;
+import net.haesleinhuepf.imagej.zoo.measurement.MeshMeasurements;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
@@ -25,21 +27,106 @@ public class DataSetHandler extends AbstractManipulator {
     public DataSetHandler(ClearControlDataSet dataSet) {
 
         Plotter.readPrefs();
+        {
+            int formLine = newFormLine();
+            JLabel lblC = new JLabel("Extract thumnails over time");
+            add(lblC, "2, " + formLine);
 
-        int formLine = newFormLine();
-        JLabel lblC = new JLabel("Extract thumnails over time");
-        add(lblC, "2, " + formLine);
+            JButton btnColor = new JButton("Extract...");
+            btnColor.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    generateThumbnails(dataSet);
+                }
 
-        JButton btnColor = new JButton("Extract...");
-        btnColor.addActionListener(new ActionListener(){
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                generateThumbnails(dataSet);
-            }
+            });
+            add(btnColor, "4, " + formLine);
+        }
 
-        });
-        add(btnColor, "4, " + formLine);
+        {
+            int formLine = newFormLine();
+            JLabel lblC = new JLabel("Analyse focus measures over time");
+            add(lblC, "2, " + formLine);
 
+            JButton btnColor = new JButton("Analyse...");
+            btnColor.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    analyseMaximumProjection(dataSet);
+                }
+
+            });
+            add(btnColor, "4, " + formLine);
+        }
+
+        {
+            int formLine = newFormLine();
+            JLabel lblC = new JLabel("Analyse mesh measures over time");
+            add(lblC, "2, " + formLine);
+
+            JButton btnColor = new JButton("Analyse...");
+            btnColor.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    analyseMesh(dataSet);
+                }
+
+            });
+            add(btnColor, "4, " + formLine);
+        }
+    }
+
+    private void analyseMesh(ClearControlDataSet dataSet) {
+        GenericDialog gd = new GenericDialog("Analyse mesh");
+        gd.addNumericField("Zoom factor (in microns)", 1.5, 2);
+        gd.addNumericField("First frame", 0, 0);
+        gd.addNumericField("Last frame", dataSet.getNumberOfFrames() - 1, 0 );
+        gd.addNumericField("Spot detection blur sigma", 3, 1);
+        gd.addNumericField("Spot detection out of sample threshold", 400, 1);
+        //gd.addStringField("Spot detection out of sample threshold", "Triangle");
+        gd.addCheckbox("Do pseudo cell segmentation", true);
+        gd.addNumericField("Pseudo cell segmentation dual dilations", 17, 0);
+        gd.addNumericField("Pseudo cell segmentation dual erosions", 7, 0);
+        gd.addCheckbox("Save projections to disc", false);
+        gd.addCheckbox("Show projections on screen", true);
+        gd.showDialog();
+        if (gd.wasCanceled()) {
+            return;
+        }
+
+        double zoom = gd.getNextNumber();
+        int firstFrame = (int) gd.getNextNumber();
+        int lastFrame = (int) gd.getNextNumber();
+        double blurSigma = gd.getNextNumber();
+        double threshold = gd.getNextNumber();
+        //String thresholdAlgorithm = gd.getNextString();
+        boolean doPseudoCellSegmentation = gd.getNextBoolean();
+        int numberOfDilations = (int) gd.getNextNumber();
+        int numberOfErotions = (int) gd.getNextNumber();
+        boolean saveProjections = gd.getNextBoolean();
+        boolean showProjections = gd.getNextBoolean();
+
+        new Thread(new MeshMeasurements(dataSet)
+                .setZoomFactor(zoom)
+                .setBlurSigma(blurSigma)
+                .setThreshold(threshold)
+                //.setThresholdAlgorithm(thresholdAlgorithm)
+                .setNumberDoubleDilationsForPseudoCellSegmentation(numberOfDilations)
+                .setNumberDoubleErosionsForPseudoCellSegmentation(numberOfErotions)
+                .setDoPseudoCellSegmentation(doPseudoCellSegmentation)
+                .setProjectionVisualisationOnScreen(showProjections)
+                .setProjectionVisualisationToDisc(saveProjections)
+                .setFirstFrame(firstFrame)
+                .setLastFrame(lastFrame)
+                ).start();
+
+
+
+
+    }
+
+    private void analyseMaximumProjection(ClearControlDataSet dataSet) {
+        new ImageQualityMeasurements(dataSet).run();
     }
 
     private void generateThumbnails(ClearControlDataSet dataSet) {

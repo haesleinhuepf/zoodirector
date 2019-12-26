@@ -309,6 +309,10 @@ public class ClearControlDataSet {
         return new MeasurementTable(this.path + measurementFilename);
     }
 
+    public int getNumberOfFrames() {
+        return timesInSeconds.length;
+    }
+
     private class CCImpListener implements ImageListener {
         boolean acting = false;
         @Override

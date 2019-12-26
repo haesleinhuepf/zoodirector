@@ -1,8 +1,11 @@
 package net.haesleinhuepf.explorer.tree.manipulators;
 
 
+import org.bounce.FormLayout;
+
 import javax.swing.*;
 import javax.swing.event.ChangeListener;
+import java.awt.*;
 
 /*
 import com.jgoodies.forms.layout.ColumnSpec;
@@ -20,20 +23,7 @@ public abstract class AbstractManipulator extends JPanel{
 	private ChangeListener cl;
 	
 	public AbstractManipulator(){
-		int rows = 15;
-		/*RowSpec[] rowSpec = new RowSpec[rows * 2];
-		for (int r = 0; r < rows * 2; r += 2) {
-			rowSpec[r] = DEFAULT_ROWSPEC;
-			rowSpec[r + 1] = DEFAULT_ROWSPEC;
-		}
-		
-		int columns = 8;
-		ColumnSpec[] colSpec = new ColumnSpec[columns * 2];
-		for (int c = 0; c < columns * 2; c += 2) {
-			colSpec[c] = RELATED_GAP_COLSPEC;
-			colSpec[c + 1] = DEFAULT_COLSPEC;
-		}
-		setLayout(new FormLayout(colSpec, rowSpec));*/
+		setLayout(new GridLayout(15, 2));
 	}
 	
 	protected void anyPropertyHasChanged() {

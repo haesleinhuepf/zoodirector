@@ -17,6 +17,7 @@ import org.apache.commons.math3.stat.descriptive.rank.Min;
  * Author: @haesleinhuepf
  * 12 2019
  */
+@Deprecated
 public class Measurements {
     public static void main(String... args) {
         ClearControlDataSet dataSet = ClearControlDataSetOpener.open("C:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/", "C0opticsprefused");

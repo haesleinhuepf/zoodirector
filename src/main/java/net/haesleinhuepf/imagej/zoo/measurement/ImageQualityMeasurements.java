@@ -10,39 +10,29 @@ import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
 
-public class ImageQualityMeasurements implements Runnable {
+public class ImageQualityMeasurements extends DataSetMeasurements {
 
-    private ClearControlDataSet dataSet;
-
-    private int firstFrame = 0;
-    private int lastFrame = 0;
 
     public ImageQualityMeasurements(ClearControlDataSet dataSet) {
-        this.dataSet = dataSet;
-        lastFrame = dataSet.getFramesPerMinute().length;
-    }
-
-    public ImageQualityMeasurements setFirstFrame(int firstFrame) {
-        this.firstFrame = firstFrame;
-        return this;
-    }
-
-    public ImageQualityMeasurements setLastFrame(int lastFrame) {
-        this.lastFrame = lastFrame;
-        return this;
+        super(dataSet);
     }
 
     @Override
     public void run()
     {
-        ResultsTable rt = new ResultsTable();
+        ResultsTable maximumProjectionAnalysisResults = new ResultsTable();
+        ResultsTable meanProjectionAnalysisResults = new ResultsTable();
 
         CLIJ clij = CLIJ.getInstance();
 
         ClearCLBuffer projection = null;
 
         for (int f = firstFrame; f <= lastFrame; f++) {
-            rt.incrementCounter();
+            maximumProjectionAnalysisResults.incrementCounter();
+            meanProjectionAnalysisResults.incrementCounter();
+
+            maximumProjectionAnalysisResults.addValue("Frame", f);
+            meanProjectionAnalysisResults.addValue("Frame", f);
 
             ImagePlus timePointStack = dataSet.getImageData(f);
 
@@ -51,21 +41,26 @@ public class ImageQualityMeasurements implements Runnable {
             projection = clij.create(new long[]{input.getWidth(), input.getHeight()}, NativeTypeEnum.Float);
 
             clij.op().maximumZProjection(input, projection);
+            new SliceAnalyser(projection, FocusMeasures.getFocusMeasuresArray(), maximumProjectionAnalysisResults).run();
+
+            clij.op().meanZProjection(input, projection);
+            new SliceAnalyser(projection, FocusMeasures.getFocusMeasuresArray(), meanProjectionAnalysisResults).run();
 
             input.close();
 
-            new SliceAnalyser(projection, FocusMeasures.getFocusMeasuresArray(), rt).run();
         }
         projection.close();
-        rt.show("Results");
+        maximumProjectionAnalysisResults.show("Max projection analysis results");
+        meanProjectionAnalysisResults.show("Mean projection analysis Results");
 
-        dataSet.saveMeasurementTable(rt, "autopilotFocusMeasures_maxProjection.csv");
+        dataSet.saveMeasurementTable(maximumProjectionAnalysisResults, "autopilotFocusMeasures_maxProjection.csv");
+        dataSet.saveMeasurementTable(meanProjectionAnalysisResults, "autopilotFocusMeasures_meanProjection.csv");
     }
 
     public static void main(String ... arg) {
         new ImageJ();
 
-        String sourceFolder = "C:/structure/data/2019-04-26-14-06-58-88-Porto/";
+        String sourceFolder = "C:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/";
         String datasetFolder = "C0opticsprefused";
 
         ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
