@@ -3,6 +3,7 @@ package net.haesleinhuepf.imagej.zoo.measurement;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
+import ij.gui.GenericDialog;
 import ij.measure.Calibration;
 import ij.measure.ResultsTable;
 import javafx.beans.property.ReadOnlySetProperty;
@@ -32,7 +33,7 @@ public class MeshMeasurements extends DataSetMeasurements {
     int numberDoubleErosionsForPseudoCellSegmentation = 7;
     int numberDoubleDilationsForPseudoCellSegmentation = 17;
     //private String thresholdAlgorithm = "Triangle";
-    private double threshold = 400;
+    private double threshold = 300;
 
     public MeshMeasurements(ClearControlDataSet dataSet) {
         super(dataSet);
@@ -96,7 +97,15 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         ResultsTable meshMeasurementTable = new ResultsTable();
 
+        GenericDialog cancelDialog = new GenericDialog("Analysis running...");
+        cancelDialog.addMessage("CLick on cancel to cancel.");
+        cancelDialog.setModal(false);
+        cancelDialog.show();
+
         for (int f = firstFrame; f <= lastFrame; f++) {
+            if (cancelDialog.wasCanceled() || cancelDialog.wasOKed()) {
+                break;
+            }
             meshMeasurementTable.incrementCounter();
             meshMeasurementTable.addValue("Frame", f);
 
@@ -347,6 +356,7 @@ public class MeshMeasurements extends DataSetMeasurements {
             clijx.clear();
             //break;
         }
+        cancelDialog.hide();
 
         meshMeasurementTable.show("Mesh measurements results");
         dataSet.saveMeasurementTable(meshMeasurementTable, "meshMeasurements.csv");

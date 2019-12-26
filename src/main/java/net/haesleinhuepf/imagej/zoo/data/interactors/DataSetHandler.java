@@ -82,7 +82,7 @@ public class DataSetHandler extends AbstractManipulator {
         gd.addNumericField("First frame", 0, 0);
         gd.addNumericField("Last frame", dataSet.getNumberOfFrames() - 1, 0 );
         gd.addNumericField("Spot detection blur sigma", 3, 1);
-        gd.addNumericField("Spot detection out of sample threshold", 400, 1);
+        gd.addNumericField("Spot detection out of sample threshold", 300, 1);
         //gd.addStringField("Spot detection out of sample threshold", "Triangle");
         gd.addCheckbox("Do pseudo cell segmentation", true);
         gd.addNumericField("Pseudo cell segmentation dual dilations", 17, 0);

@@ -4,6 +4,7 @@ package net.haesleinhuepf.imagej.zoo;
 import ij.IJ;
 import ij.ImageJ;
 import ij.plugin.PlugIn;
+import net.haesleinhuepf.clijx.CLIJx;
 import net.haesleinhuepf.explorer.DataExplorer;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlSession;
 import net.haesleinhuepf.imagej.zoo.data.ZooIndex;
@@ -44,7 +45,10 @@ public class ZooExplorerPlugin implements PlugIn {
 
         new ImageJ();
 
-        ZooExplorerPlugin.open("C:/structure/data/");
+        CLIJx.getInstance("2060");
+        ZooExplorerPlugin.open("D:/");
+
+        //ZooExplorerPlugin.open("C:/structure/data/");
     }
 
 }
