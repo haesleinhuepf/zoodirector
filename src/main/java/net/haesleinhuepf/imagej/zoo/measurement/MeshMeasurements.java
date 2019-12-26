@@ -174,6 +174,12 @@ public class MeshMeasurements extends DataSetMeasurements {
             // -----------------------------------------------------------------------
             // convert spots image to spot list
             int number_of_spots = (int)clijx.sumPixels(detected_spots);
+            meshMeasurementTable.addValue("spot_count", number_of_spots);
+
+            if (number_of_spots < 1) {
+                // we have to have a non-zero sized stack in the next step...
+                number_of_spots = 1;
+            }
             ClearCLBuffer pointlist = clijx.create(new long[]{number_of_spots, 3});
             pointlist.setName("pointlist");
             clijx.stopWatch("intermediate ");
@@ -211,7 +217,6 @@ public class MeshMeasurements extends DataSetMeasurements {
 
                 double meanDistance = clijx.meanOfPixelsAboveThreshold(relevantDistances, 0);
                 meshMeasurementTable.addValue("mean_neighbor_distance", meanDistance);
-                meshMeasurementTable.addValue("spot_count", number_of_spots);
 
 
                 // clijx.saveAsTIF(touch_matrix,      outputFolder + "_touch_matrix/" + filename + ".tif");
