@@ -19,6 +19,7 @@ public class Utilities {
         Toolbar.addPlugInTool(new InteractiveBrightnessContrast());
         Toolbar.addPlugInTool(new InteractiveZoom());
         Toolbar.addPlugInTool(new InteractiveWindowPosition());
+		Toolbar.addPlugInTool(new InteractiveThresholdWatershed());
 
         IJ.setTool(tool);
         restoring = true;
