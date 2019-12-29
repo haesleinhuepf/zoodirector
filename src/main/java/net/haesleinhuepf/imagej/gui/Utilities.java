@@ -17,7 +17,8 @@ public class Utilities {
         Toolbar.addPlugInTool(new InteractiveBrightnessContrast());
         Toolbar.addPlugInTool(new InteractiveZoom());
         Toolbar.addPlugInTool(new InteractiveWindowPosition());
-		Toolbar.addPlugInTool(new InteractiveBlurAndThreshold());
+        Toolbar.addPlugInTool(new InteractiveBlurAndThreshold());
+        Toolbar.addPlugInTool(new InteractiveTopMaxAndThreshold());
 
         IJ.setTool(tool);
         restoring = true;
