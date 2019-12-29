@@ -3,8 +3,6 @@ package net.haesleinhuepf.imagej.gui;
 import ij.IJ;
 import ij.gui.Toolbar;
 
-import javax.tools.Tool;
-
 public class Utilities {
     public static boolean restoring = false;
 
@@ -19,7 +17,7 @@ public class Utilities {
         Toolbar.addPlugInTool(new InteractiveBrightnessContrast());
         Toolbar.addPlugInTool(new InteractiveZoom());
         Toolbar.addPlugInTool(new InteractiveWindowPosition());
-		Toolbar.addPlugInTool(new InteractiveThresholdWatershed());
+		Toolbar.addPlugInTool(new InteractiveBlurAndThreshold());
 
         IJ.setTool(tool);
         restoring = true;
