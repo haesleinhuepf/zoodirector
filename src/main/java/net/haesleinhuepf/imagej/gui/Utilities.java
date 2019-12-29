@@ -3,6 +3,8 @@ package net.haesleinhuepf.imagej.gui;
 import ij.IJ;
 import ij.gui.Toolbar;
 
+import javax.tools.Tool;
+
 public class Utilities {
     public static boolean restoring = false;
 
@@ -15,7 +17,7 @@ public class Utilities {
         Toolbar.removeMacroTools();
 
         Toolbar.addPlugInTool(new InteractiveBrightnessContrast());
-
+        Toolbar.addPlugInTool(new InteractiveZoom());
         Toolbar.addPlugInTool(new InteractiveWindowPosition());
 
         IJ.setTool(tool);
