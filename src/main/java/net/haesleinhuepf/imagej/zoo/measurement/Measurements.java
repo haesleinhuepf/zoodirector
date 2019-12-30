@@ -87,11 +87,11 @@ public class Measurements {
             IJ.saveAs(plot.getImagePlus(), "tif", outputFolder + "framesPerMinutePlot/" + timepoint + ".tif");
 
 
-            ImagePlus thumbnail = dataSet.getThumbnails();
-            thumbnail.setT(frame + 1);
+            //ImagePlus thumbnail = dataSet.getThumbnails();
+            //thumbnail.setT(frame + 1);
 
-            ImagePlus imp = new ImagePlus("", thumbnail.getProcessor());
-            IJ.saveAs(imp, "tif", outputFolder + "image/" + timepoint + ".tif");
+            //ImagePlus imp = new ImagePlus("", thumbnail.getProcessor());
+            //IJ.saveAs(imp, "tif", outputFolder + "image/" + timepoint + ".tif");
 
 
 

@@ -25,7 +25,7 @@ public class MeshMeasurements extends DataSetMeasurements {
     double blurSigma = 3;
 
     boolean projection_visualisation_on_screen = true;
-    boolean projection_visualisation_to_disc = false;
+    boolean projection_visualisation_to_disc = true;
 
     boolean do_pseudo_cell_segmentation = true;
 
@@ -34,7 +34,7 @@ public class MeshMeasurements extends DataSetMeasurements {
     int numberDoubleErosionsForPseudoCellSegmentation = 7;
     int numberDoubleDilationsForPseudoCellSegmentation = 17;
     //private String thresholdAlgorithm = "Triangle";
-    private double threshold = 300;
+    private double threshold = 250;
 
     public MeshMeasurements(ClearControlDataSet dataSet) {
         super(dataSet);
@@ -229,6 +229,11 @@ public class MeshMeasurements extends DataSetMeasurements {
                 double varianceDistance = clijx.varianceOfMaskedPixels(relevantDistances, touch_matrix, meanDistance);
                 meshMeasurementTable.addValue("mean_neighbor_distance", meanDistance);
                 meshMeasurementTable.addValue("variance_neighbor_distance", varianceDistance);
+                double numberOfTouches = clijx.sumOfAllPixels(touch_matrix);
+                meshMeasurementTable.addValue("number_of_touches", numberOfTouches);
+
+
+
 
 
                 // clijx.saveAsTIF(touch_matrix,      outputFolder + "_touch_matrix/" + filename + ".tif");
@@ -245,6 +250,15 @@ public class MeshMeasurements extends DataSetMeasurements {
                 mesh = distanceMatrixToMesh(inputImage, pointlist, distance_matrix);
                 clijx.stopWatch("mesh");
             }
+
+            double meanDistance = clijx.meanOfMaskedPixels(average_close_spot_distance, detected_spots);
+            double varianceDistance = clijx.varianceOfMaskedPixels(average_close_spot_distance, detected_spots, meanDistance);
+            meshMeasurementTable.addValue("mean_neighbor_distance2", meanDistance);
+            meshMeasurementTable.addValue("variance_neighbor_distance2", varianceDistance);
+
+
+
+
 
             // -----------------------------------------------------------------------
             // Visualisation
