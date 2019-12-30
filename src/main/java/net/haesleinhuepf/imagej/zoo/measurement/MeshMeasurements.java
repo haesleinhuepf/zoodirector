@@ -10,6 +10,7 @@ import javafx.beans.property.ReadOnlySetProperty;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.macro.modules.Clear;
 import net.haesleinhuepf.clijx.CLIJx;
+import net.haesleinhuepf.clijx.advancedfilters.VarianceOfMaskedPixels;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
 
@@ -225,7 +226,9 @@ public class MeshMeasurements extends DataSetMeasurements {
                 clijx.multiplyImages(distance_matrix, touch_matrix, relevantDistances);
 
                 double meanDistance = clijx.meanOfPixelsAboveThreshold(relevantDistances, 0);
+                double varianceDistance = clijx.varianceOfMaskedPixels(relevantDistances, touch_matrix, meanDistance);
                 meshMeasurementTable.addValue("mean_neighbor_distance", meanDistance);
+                meshMeasurementTable.addValue("variance_neighbor_distance", varianceDistance);
 
 
                 // clijx.saveAsTIF(touch_matrix,      outputFolder + "_touch_matrix/" + filename + ".tif");
