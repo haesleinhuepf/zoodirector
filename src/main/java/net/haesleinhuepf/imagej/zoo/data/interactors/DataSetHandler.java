@@ -129,11 +129,14 @@ public class DataSetHandler extends AbstractManipulator {
         new ImageQualityMeasurements(dataSet).run();
     }
 
+    private String thumbnailFolder = "";
     private void generateThumbnails(ClearControlDataSet dataSet) {
         GenericDialog gd = new GenericDialog("Plot over time");
         gd.addNumericField("Start", Plotter.startTime, 2);
         gd.addNumericField("End", Plotter.endTime, 2);
         gd.addChoice("Time unit for x-axis", new String[]{"Seconds", "Minutes", "Hours"}, Plotter.timeUnit);
+        gd.addNumericField("Number of images", Plotter.numberOfImages, 0);
+        gd.addChoice("Thumbnail folder", dataSet.getThumbnailFolderNames(), thumbnailFolder);
         gd.addCheckbox("Save images to processed folder", Plotter.saveImages);
 
         gd.showDialog();
@@ -145,11 +148,14 @@ public class DataSetHandler extends AbstractManipulator {
         Plotter.startTime = gd.getNextNumber();
         Plotter.endTime = gd.getNextNumber();
         Plotter.timeUnit = gd.getNextChoice();
+        Plotter.numberOfImages = (int) gd.getNextNumber();
+        thumbnailFolder = gd.getNextString();
         Plotter.saveImages = gd.getNextBoolean();
 
         Plotter.writePrefs();
 
         ImagePlus imp = generateThumbnails(dataSet,
+                thumbnailFolder,
                 Plotter.startTime,
                 Plotter.endTime,
                 Plotter.timeUnit,
@@ -161,7 +167,7 @@ public class DataSetHandler extends AbstractManipulator {
         imp.show();
     }
 
-    public static ImagePlus generateThumbnails(ClearControlDataSet dataSet, double startTime, double endTime, String timeUnit, int numberOfImages, String title, boolean saveImages) {
+    public static ImagePlus generateThumbnails(ClearControlDataSet dataSet, String thumbnailFolder, double startTime, double endTime, String timeUnit, int numberOfImages, String title, boolean saveImages) {
 
         double startTimeInMinutes = startTime;
         double endTimeInMinutes = endTime;
@@ -211,7 +217,7 @@ public class DataSetHandler extends AbstractManipulator {
             timepoint = timepoint.substring(timepoint.length() - 6, timepoint.length());
 
 
-            ImagePlus thumbnail = dataSet.getThumbnails();
+            ImagePlus thumbnail = dataSet.getThumbnailsFromFolder(thumbnailFolder);
             thumbnail.setT(frame + 1);
 
             ImagePlus image = new ImagePlus("", thumbnail.getProcessor());

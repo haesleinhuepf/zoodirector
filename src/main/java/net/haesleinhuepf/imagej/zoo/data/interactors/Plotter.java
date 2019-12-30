@@ -72,6 +72,7 @@ public class Plotter extends AbstractManipulator {
         gd.addNumericField("Start", startTime, 2);
         gd.addNumericField("End", endTime, 2);
         gd.addChoice("Time unit for x-axis", new String[]{"Seconds", "Minutes", "Hours"}, timeUnit);
+        gd.addNumericField("Number of images", Plotter.numberOfImages, 0);
         gd.addNumericField("Plot size x", plotWidth, 0);
         gd.addNumericField("Plot size y", plotHeight, 0);
         gd.addCheckbox("Save images to processed folder", saveImages);
@@ -85,6 +86,7 @@ public class Plotter extends AbstractManipulator {
         startTime = gd.getNextNumber();
         endTime = gd.getNextNumber();
         timeUnit = gd.getNextChoice();
+        numberOfImages = (int) gd.getNextNumber();
         plotWidth = (int)gd.getNextNumber();
         plotHeight = (int)gd.getNextNumber();
         saveImages = gd.getNextBoolean();

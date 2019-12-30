@@ -42,9 +42,11 @@ public class ClearControlDataSetTreeNode extends AbstractTreeNode implements Pro
             if (data != null) {
                 treeBuilder.getFactoryToCreateNewTreeNode(this, data).createNew(this, data);
             }
-            ImagePlus thumbnail = dataSet.getThumbnails();
-            if (thumbnail != null) {
-                treeBuilder.getFactoryToCreateNewTreeNode(this, thumbnail).createNew(this, thumbnail);
+            for (String folder : dataSet.getThumbnailFolderNames()) {
+                ImagePlus thumbnail = dataSet.getThumbnailsFromFolder(folder);
+                if (thumbnail != null) {
+                    treeBuilder.getFactoryToCreateNewTreeNode(this, thumbnail).createNew(this, thumbnail);
+                }
             }
             for (String name : dataSet.getMeasurementFiles()) {
                 MeasurementTable table = new MeasurementTable(dataSet.getPath() + name);

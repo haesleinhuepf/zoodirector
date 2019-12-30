@@ -8,12 +8,15 @@ import ij.measure.ResultsTable;
 import ij.plugin.Duplicator;
 import ij.plugin.FolderOpener;
 import ij.plugin.HyperStackConverter;
+import net.haesleinhuepf.imagej.zoo.ImageMap;
 import net.haesleinhuepf.imagej.zoo.ZooUtilities;
 import net.haesleinhuepf.imagej.zoo.visualisation.ClearControlInteractivePlot;
 import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
+import net.imglib2.img.array.ArrayRandomAccess;
 
 import java.awt.*;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -176,6 +179,7 @@ public class ClearControlDataSet {
         }
     }
 
+    /*
     private ImagePlus thumbnails = null;
     public ImagePlus getThumbnails() {
         if (thumbnails == null) {
@@ -198,6 +202,34 @@ public class ClearControlDataSet {
         if (thumbnails == null) {
             thumbnails = NewImage.createByteImage("no thumbnails found", 1, 1,1, NewImage.FILL_BLACK);
         }
+        return thumbnails;
+    }*/
+
+    public String[] getThumbnailFolderNames() {
+        File[] mainFolders = new File[]{
+                new File(path + "stacks/"),
+                new File(path + "processed/")
+        };
+        ArrayList<String> imageFolders = new ArrayList<>();
+        for (File mainFolder : mainFolders) {
+            if (mainFolder.exists() && mainFolder.isDirectory()) {
+                for (File subfolder : mainFolder.listFiles()) {
+                    if (subfolder.isDirectory() && subfolder.listFiles(pathname -> pathname.getName().endsWith(".tif")).length > 1) {
+                        imageFolders.add(mainFolder.getName() + "/" + subfolder.getName() + "/");
+                    }
+                }
+            }
+        }
+
+        String[] imageFolderArray = new String[imageFolders.size()];
+        imageFolders.toArray(imageFolderArray);
+        return imageFolderArray;
+    }
+
+    ArrayList<ImagePlus> registeredThumbnails = new ArrayList<>();
+    public ImagePlus getThumbnailsFromFolder(String foldername) {
+        ImagePlus thumbnails = ZooUtilities.openFolderStack(path + foldername);
+        registeredThumbnails.add(thumbnails);
         return thumbnails;
     }
 
@@ -292,8 +324,10 @@ public class ClearControlDataSet {
 
         if (currentFrame != frame) {
             currentFrame = frame;
-            if (thumbnails != null && thumbnails.getNFrames() > frame) {
-                thumbnails.setT(frame + 1);
+            for (ImagePlus thumbnail : registeredThumbnails) {
+                if (thumbnail.getNFrames() > frame) {
+                    thumbnail.setT(frame + 1);
+                }
             }
 
             if (data != null && data.getNFrames() > frame) {
@@ -322,7 +356,9 @@ public class ClearControlDataSet {
 
         @Override
         public void imageClosed(ImagePlus imp) {
-
+            if (registeredThumbnails.contains(imp)) {
+                registeredThumbnails.remove(imp);
+            }
         }
 
         @Override
@@ -335,9 +371,9 @@ public class ClearControlDataSet {
                 setCurrentFrame(data.getT());
                 acting = false;
             }
-            if (imp == thumbnails) {
+            if (registeredThumbnails.contains(imp)) {
                 acting = true;
-                setCurrentFrame(thumbnails.getT());
+                setCurrentFrame(imp.getT());
                 acting = false;
             }
         }
@@ -378,7 +414,10 @@ public class ClearControlDataSet {
         IJ.run(imp, "Enhance Contrast", "saturated=0.35");
         imp.show();
 
-        getThumbnails().show();
+        String[] potentialThumbnailfolders = getThumbnailFolderNames();
+        for (String folder : potentialThumbnailfolders) {
+            getThumbnailsFromFolder(folder).show();
+        }
         getImageData().show();
 
         double[] fpm = getFramesPerMinute();
