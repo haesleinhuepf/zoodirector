@@ -347,6 +347,13 @@ public class ClearControlDataSet {
         return timesInSeconds.length;
     }
 
+    public String getShortName() {
+        String foldername = new File(path).getName();
+        String[] temp =foldername.split("-");
+        temp = temp[temp.length - 1].split("_");
+        return temp[0];
+    }
+
     private class CCImpListener implements ImageListener {
         boolean acting = false;
         @Override
