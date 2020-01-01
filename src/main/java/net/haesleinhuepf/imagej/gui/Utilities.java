@@ -17,6 +17,7 @@ public class Utilities {
         Toolbar.addPlugInTool(new InteractiveBrightnessContrast());
         Toolbar.addPlugInTool(new InteractiveZoom());
         Toolbar.addPlugInTool(new InteractiveWindowPosition());
+        Toolbar.addPlugInTool(new InteractiveRotation());
         Toolbar.addPlugInTool(new InteractiveBlurAndThreshold());
         Toolbar.addPlugInTool(new InteractiveTopMaxAndThreshold());
 
