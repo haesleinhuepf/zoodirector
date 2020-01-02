@@ -102,7 +102,7 @@ public class DataSetHandler extends AbstractManipulator {
         //String thresholdAlgorithm = gd.getNextString();
         boolean doPseudoCellSegmentation = gd.getNextBoolean();
         int numberOfDilations = (int) gd.getNextNumber();
-        int numberOfErotions = (int) gd.getNextNumber();
+        int numberOfErosions = (int) gd.getNextNumber();
         boolean saveProjections = gd.getNextBoolean();
         boolean showProjections = gd.getNextBoolean();
 
@@ -112,7 +112,7 @@ public class DataSetHandler extends AbstractManipulator {
                 .setThreshold(threshold)
                 //.setThresholdAlgorithm(thresholdAlgorithm)
                 .setNumberDoubleDilationsForPseudoCellSegmentation(numberOfDilations)
-                .setNumberDoubleErosionsForPseudoCellSegmentation(numberOfErotions)
+                .setNumberDoubleErosionsForPseudoCellSegmentation(numberOfErosions)
                 .setDoPseudoCellSegmentation(doPseudoCellSegmentation)
                 .setProjectionVisualisationOnScreen(showProjections)
                 .setProjectionVisualisationToDisc(saveProjections)
