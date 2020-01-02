@@ -5,6 +5,8 @@ import ij.plugin.FolderOpener;
 import ij.plugin.HyperStackConverter;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 
 /**
  * ZooUtilities
@@ -24,4 +26,11 @@ public class ZooUtilities {
         thumbnails.setTitle(file.getName());
         return thumbnails;
     }
+
+    public static String now() {
+        Calendar cal = Calendar.getInstance();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
+        return sdf.format(cal.getTime());
+    }
+
 }
