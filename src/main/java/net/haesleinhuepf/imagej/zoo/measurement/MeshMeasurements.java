@@ -6,15 +6,16 @@ import ij.ImagePlus;
 import ij.gui.GenericDialog;
 import ij.measure.Calibration;
 import ij.measure.ResultsTable;
-import javafx.beans.property.ReadOnlySetProperty;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
-import net.haesleinhuepf.clij.macro.modules.Clear;
 import net.haesleinhuepf.clijx.CLIJx;
-import net.haesleinhuepf.clijx.advancedfilters.VarianceOfMaskedPixels;
+import net.haesleinhuepf.imagej.zoo.ZooUtilities;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
+import org.scijava.util.VersionUtils;
 
-import javax.swing.*;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public class MeshMeasurements extends DataSetMeasurements {
     CLIJx clijx;
@@ -95,6 +96,37 @@ public class MeshMeasurements extends DataSetMeasurements {
     public void run() {
 
         String outputFolder = dataSet.getPath() + "processed/";
+
+        String now = ZooUtilities.now();
+
+        String analysisLog = "Analysis log \n" +
+                now + "\n" +
+                "Dataset path: " + dataSet.getPath() + "\n" +
+                "Dataset name: " + dataSet.getName() + "\n" +
+                "Dataset shortname: " + dataSet.getShortName() + "\n" +
+
+                "CLIJx: " + clijx + "\n" +
+                "CLIJx GPU name: " + clijx.getGPUName() + "\n" +
+                "CLIJx OpenCL version: " + clijx.getOpenCLVersion() + "\n" +
+                "CLIJx mvn version: " + VersionUtils.getVersion(CLIJx.class) + "\n" +
+
+                "MeshMeasurements version: " + VersionUtils.getVersion(MeshMeasurements.class) + "\n" +
+                "zoomFactor: " + zoomFactor + "\n" +
+                "blurSigma: " + blurSigma  + "\n" +
+                "projection_visualisation_on_screen: " + projection_visualisation_on_screen  + "\n" +
+                "projection_visualisation_to_disc: " + projection_visualisation_to_disc  + "\n" +
+                "do_pseudo_cell_segmentation: " + do_pseudo_cell_segmentation  + "\n" +
+                "maximumDistanceToMeshPoints: " + maximumDistanceToMeshPoints  + "\n" +
+                "numberDoubleErosionsForPseudoCellSegmentation: " + numberDoubleErosionsForPseudoCellSegmentation  + "\n" +
+                "numberDoubleDilationsForPseudoCellSegmentation: " + numberDoubleDilationsForPseudoCellSegmentation  + "\n" +
+                "threshold: " + threshold  + "\n";
+
+        try {
+            Files.write(Paths.get(outputFolder + now + "_meshmeasurementlog.txt"), analysisLog.getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
 
         ResultsTable meshMeasurementTable = new ResultsTable();
 
@@ -269,7 +301,7 @@ public class MeshMeasurements extends DataSetMeasurements {
                 ClearCLBuffer max_image = result[0];
                 ClearCLBuffer arg_max_image = result[1];
 
-                ClearCLBuffer max_spots = max_projection(detected_spots);
+                ClearCLBuffer max_spots = max_z_projection(detected_spots);
                 ClearCLBuffer[] max_cells = new ClearCLBuffer[1];
                 ClearCLBuffer[] arg_max_cells = new ClearCLBuffer[1];
 
@@ -280,19 +312,21 @@ public class MeshMeasurements extends DataSetMeasurements {
                     result = arg_max_projection(segmented_cells);
                     max_cells[0] = result[0];
                     arg_max_cells[0] = result[1];
-                    max_membranes[0] = max_projection(cell_outlines);
+                    max_membranes[0] = max_z_projection(cell_outlines);
                     mean_membranes[0] = mean_projection(cell_outlines);
                 }
-                ClearCLBuffer max_avg_dist = max_projection(average_close_spot_distance);
+                ClearCLBuffer max_avg_dist = max_z_projection(average_close_spot_distance);
                 ClearCLBuffer mean_avg_dist = mean_projection(average_close_spot_distance);
 
                 ClearCLBuffer[] max_num_touch = new ClearCLBuffer[1];
                 ClearCLBuffer[] mean_num_touch = new ClearCLBuffer[1];
                 if (do_pseudo_cell_segmentation) {
-                    max_num_touch[0] = max_projection(number_of_touching_neighbors);
+                    max_num_touch[0] = max_z_projection(number_of_touching_neighbors);
                     mean_num_touch[0] = mean_projection(number_of_touching_neighbors);
                 }
-                ClearCLBuffer max_mesh = max_projection(mesh);
+                ClearCLBuffer max_mesh_x = max_x_projection(mesh);
+                ClearCLBuffer max_mesh_y = max_y_projection(mesh);
+                ClearCLBuffer max_mesh_z = max_z_projection(mesh);
 
                 ClearCLBuffer[] nonzero_min_membranes = new ClearCLBuffer[1];
                 ClearCLBuffer[] nonzero_min_num_touch = new ClearCLBuffer[1];
@@ -320,7 +354,9 @@ public class MeshMeasurements extends DataSetMeasurements {
                         clijx.saveAsTIF(max_num_touch[0], outputFolder + "_max_num_touch/" + filename + ".tif");
                         clijx.saveAsTIF(mean_num_touch[0], outputFolder + "_mean_num_touch/" + filename + ".tif");
                     }
-                    clijx.saveAsTIF(max_mesh, outputFolder + "_max_mesh/" + filename + ".tif");
+                    clijx.saveAsTIF(max_mesh_x, outputFolder + "_max_mesh_x/" + filename + ".tif");
+                    clijx.saveAsTIF(max_mesh_y, outputFolder + "_max_mesh_y/" + filename + ".tif");
+                    clijx.saveAsTIF(max_mesh_z, outputFolder + "_max_mesh_z/" + filename + ".tif");
                     if (do_pseudo_cell_segmentation) {
                         clijx.saveAsTIF(nonzero_min_membranes[0], outputFolder + "_nonzero_min_membranes/" + filename + ".tif");
                         clijx.saveAsTIF(nonzero_min_num_touch[0], outputFolder + "_nonzero_min_num_touch/" + filename + ".tif");
@@ -346,7 +382,9 @@ public class MeshMeasurements extends DataSetMeasurements {
                         clijx.showGrey(max_num_touch[0], "_max_num_touch");
                         clijx.showGrey(mean_num_touch[0], "_mean_num_touch");
                     }
-                    clijx.showGrey(max_mesh, "_max_mesh");
+                    clijx.showGrey(max_mesh_x, "_max_mesh_x");
+                    clijx.showGrey(max_mesh_y, "_max_mesh_y");
+                    clijx.showGrey(max_mesh_z, "_max_mesh_z");
 
                     if (do_pseudo_cell_segmentation) {
                         clijx.showGrey(nonzero_min_membranes[0], "_nonzero_min_membranes");
@@ -554,9 +592,23 @@ public class MeshMeasurements extends DataSetMeasurements {
         return image2D;
     }
 
-    private ClearCLBuffer max_projection(ClearCLBuffer stack) {
+    private ClearCLBuffer max_x_projection(ClearCLBuffer stack) {
+        ClearCLBuffer image2D = clijx.create(new long[]{stack.getDepth(), stack.getHeight()});
+        image2D.setName("MAX_x_" + stack.getName());
+        clijx.maximumXProjection(stack,image2D);
+        return image2D;
+    }
+
+    private ClearCLBuffer max_y_projection(ClearCLBuffer stack) {
+        ClearCLBuffer image2D = clijx.create(new long[]{stack.getWidth(), stack.getDepth()});
+        image2D.setName("MAX_y_" + stack.getName());
+        clijx.maximumYProjection(stack,image2D);
+        return image2D;
+    }
+
+    private ClearCLBuffer max_z_projection(ClearCLBuffer stack) {
         ClearCLBuffer image2D = clijx.create(new long[]{stack.getWidth(), stack.getHeight()});
-        image2D.setName("MAX_"+stack.getName());
+        image2D.setName("MAX_z_" + stack.getName());
         clijx.maximumZProjection(stack,image2D);
         return image2D;
     }
