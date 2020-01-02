@@ -46,6 +46,10 @@ public class Plotter extends AbstractManipulator {
     static int numberOfImages = 100;
     static boolean saveImages = true;
 
+    public static Double minY = null;
+    public static Double maxY = null;
+
+
     public Plotter(ClearControlInteractivePlot plot) {
 
         readPrefs();
@@ -165,9 +169,8 @@ public class Plotter extends AbstractManipulator {
         double minX = new Min().evaluate(times);
         double maxX = new Max().evaluate(times);
 
-        double minMeasurement = new Min().evaluate(measurements);
-        double maxMeasurement = new Max().evaluate(measurements);
-
+        double minMeasurement = minY != null?minY:new Min().evaluate(measurements);
+        double maxMeasurement = maxY != null?maxY:new Max().evaluate(measurements);
 
         PlotTableOverTime.plotXTitle = "Time / " + timeUnit;
         PlotTableOverTime.width = widthInPixels;
