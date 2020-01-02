@@ -1,6 +1,7 @@
 package net.haesleinhuepf.imagej.gui;
 
 import ij.IJ;
+import ij.ImageJ;
 import ij.gui.Toolbar;
 
 public class Utilities {
@@ -20,6 +21,8 @@ public class Utilities {
         Toolbar.addPlugInTool(new InteractiveRotation());
         Toolbar.addPlugInTool(new InteractiveBlurAndThreshold());
         Toolbar.addPlugInTool(new InteractiveTopMaxAndThreshold());
+
+        //new CLIJBar().setVisible(true);
 
         IJ.setTool(tool);
         restoring = true;
@@ -52,5 +55,10 @@ public class Utilities {
         }
         //DebugHelper.print(new Object(), result);
         return result;
+    }
+
+    public static void main(String[] args) {
+        new ImageJ();
+        installTools();
     }
 }
