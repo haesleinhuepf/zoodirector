@@ -354,6 +354,16 @@ public class ClearControlDataSet {
         return temp[0];
     }
 
+    public double getVoxelSizeX(int frame) {
+        return voxelDimXs[frame];
+    }
+    public double getVoxelSizeY(int frame) {
+        return voxelDimYs[frame];
+    }
+    public double getVoxelSizeZ(int frame) {
+        return voxelDimZs[frame];
+    }
+
     private class CCImpListener implements ImageListener {
         boolean acting = false;
         @Override
