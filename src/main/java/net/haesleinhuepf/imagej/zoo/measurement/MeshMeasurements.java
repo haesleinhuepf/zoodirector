@@ -397,11 +397,11 @@ public class MeshMeasurements extends DataSetMeasurements {
 
             clijx.clear();
             //break;
+            meshMeasurementTable.show("Mesh measurements results");
+            dataSet.saveMeasurementTable(meshMeasurementTable, "processed/meshMeasurements.csv");
         }
         cancelDialog.hide();
 
-        meshMeasurementTable.show("Mesh measurements results");
-        dataSet.saveMeasurementTable(meshMeasurementTable, "meshMeasurements.csv");
     }
 /*
     public double meanOfMaskedPixels(ClearCLBuffer clImage, ClearCLBuffer mask) {
@@ -422,30 +422,24 @@ public class MeshMeasurements extends DataSetMeasurements {
     private ClearCLBuffer measureAverageDistanceOfTouchingNeighbors(ClearCLBuffer touch_matrix, ClearCLBuffer distance_matrix, ClearCLBuffer label_map) {
 
         ClearCLBuffer distanceVector = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
-        ClearCLBuffer temp = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
-        clijx.averageDistanceOfTouchingNeighbors(distance_matrix, touch_matrix,temp);
+        clijx.averageDistanceOfTouchingNeighbors(distance_matrix, touch_matrix, distanceVector);
 
         //clijx.show(distanceVector, "disvec");
 
-        clijx.multiplyImageAndScalar(temp, distanceVector, 1.0 / zoomFactor);
 
         ClearCLBuffer parametricDistanceImage = clijx.create(label_map.getDimensions(), clijx.Float);
         clijx.replaceIntensities(label_map, distanceVector, parametricDistanceImage);
 
         clijx.release(distanceVector);
-        clijx.release(temp);
 
         return parametricDistanceImage;
     }
 
     private ClearCLBuffer measureMinimumDistanceOfTouchingNeighbors(ClearCLBuffer touch_matrix, ClearCLBuffer distance_matrix, ClearCLBuffer label_map) {
         ClearCLBuffer distanceVector = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
-        ClearCLBuffer temp = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
 
-        clijx.minimumDistanceOfTouchingNeighbors(distance_matrix, touch_matrix, temp);
+        clijx.minimumDistanceOfTouchingNeighbors(distance_matrix, touch_matrix, distanceVector);
 
-        // correct measurement to have it in microns
-        clijx.multiplyImageAndScalar(temp, distanceVector, 1.0 / zoomFactor);
 
 
         //clijx.show(distanceVector, "disvec");
@@ -454,7 +448,6 @@ public class MeshMeasurements extends DataSetMeasurements {
         clijx.replaceIntensities(label_map, distanceVector, parametricDistanceImage);
 
         clijx.release(distanceVector);
-        clijx.release(temp);
 
         return parametricDistanceImage;
     }
@@ -604,8 +597,14 @@ public class MeshMeasurements extends DataSetMeasurements {
     private ClearCLBuffer generateDistanceMatrix(ClearCLBuffer pointlist, int number_of_spots) {
 
         ClearCLBuffer distance_matrix = clijx.create(new long[]{number_of_spots + 1, number_of_spots + 1});
+        ClearCLBuffer temp = clijx.create(new long[]{number_of_spots + 1, number_of_spots + 1});
         distance_matrix.setName("distance_matrix");
-        clijx.generateDistanceMatrix(pointlist, pointlist, distance_matrix);
+        clijx.generateDistanceMatrix(pointlist, pointlist, temp);
+
+
+        // correct measurement to have it in microns
+        clijx.activateSizeIndependentKernelCompilation();
+        clijx.multiplyImageAndScalar(temp, distance_matrix, 1.0 / zoomFactor);
 
         //ClearCLBuffer neighbor_avg_distance_vector = clijx.create(new long[]{distance_matrix.getWidth(), 1, 1});
         //neighbor_avg_distance_vector.setName("neighbor_avg_distance_vector");
@@ -675,18 +674,18 @@ public class MeshMeasurements extends DataSetMeasurements {
     public static void main(String ... arg) {
         new ImageJ();
 
-        CLIJx.getInstance("2060");
+        CLIJx.getInstance("2070");
 
         String sourceFolder = "C:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/";
         String datasetFolder = "C0opticsprefused";
 
         ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
 
-        int startFrame = 1505;
-        int endFrame = startFrame + 1;
+        int startFrame = 1105;
+        int endFrame = startFrame + 100;
 
         new MeshMeasurements(dataSet).
-                setProjectionVisualisationToDisc(true).
+                setProjectionVisualisationToDisc(false).
                 setProjectionVisualisationOnScreen(true).
                 setThreshold(300).
                 setFirstFrame(startFrame).
