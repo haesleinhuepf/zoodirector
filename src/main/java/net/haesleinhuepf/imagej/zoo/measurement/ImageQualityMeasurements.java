@@ -28,6 +28,7 @@ public class ImageQualityMeasurements extends DataSetMeasurements {
         ClearCLBuffer projection = null;
 
         for (int f = firstFrame; f <= lastFrame; f++) {
+            System.out.println("f " + f);
             maximumProjectionAnalysisResults.incrementCounter();
             meanProjectionAnalysisResults.incrementCounter();
 
@@ -53,8 +54,8 @@ public class ImageQualityMeasurements extends DataSetMeasurements {
         maximumProjectionAnalysisResults.show("Max projection analysis results");
         meanProjectionAnalysisResults.show("Mean projection analysis Results");
 
-        dataSet.saveMeasurementTable(maximumProjectionAnalysisResults, "autopilotFocusMeasures_maxProjection.csv");
-        dataSet.saveMeasurementTable(meanProjectionAnalysisResults, "autopilotFocusMeasures_meanProjection.csv");
+        dataSet.saveMeasurementTable(maximumProjectionAnalysisResults, "processed/autopilotFocusMeasures_maxProjection.csv");
+        dataSet.saveMeasurementTable(meanProjectionAnalysisResults, "processed/autopilotFocusMeasures_meanProjection.csv");
     }
 
     public static void main(String ... arg) {
@@ -65,7 +66,7 @@ public class ImageQualityMeasurements extends DataSetMeasurements {
 
         ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
 
-        new ImageQualityMeasurements(dataSet).setLastFrame(10).run();
+        new ImageQualityMeasurements(dataSet).run();
     }
 
 }
