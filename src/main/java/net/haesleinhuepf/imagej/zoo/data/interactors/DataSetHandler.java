@@ -84,7 +84,7 @@ public class DataSetHandler extends AbstractManipulator {
         gd.addNumericField("Spot detection blur sigma", 3, 1);
         gd.addNumericField("Spot detection out of sample threshold", 250, 1);
         //gd.addStringField("Spot detection out of sample threshold", "Triangle");
-        gd.addCheckbox("Do pseudo cell segmentation", true);
+        //gd.addCheckbox("Do pseudo cell segmentation", true);
         gd.addNumericField("Pseudo cell segmentation dual dilations", 17, 0);
         gd.addNumericField("Pseudo cell segmentation dual erosions", 7, 0);
         gd.addCheckbox("Save projections to disc", true);
@@ -100,7 +100,7 @@ public class DataSetHandler extends AbstractManipulator {
         double blurSigma = gd.getNextNumber();
         double threshold = gd.getNextNumber();
         //String thresholdAlgorithm = gd.getNextString();
-        boolean doPseudoCellSegmentation = gd.getNextBoolean();
+        //boolean doPseudoCellSegmentation = gd.getNextBoolean();
         int numberOfDilations = (int) gd.getNextNumber();
         int numberOfErosions = (int) gd.getNextNumber();
         boolean saveProjections = gd.getNextBoolean();
@@ -113,7 +113,6 @@ public class DataSetHandler extends AbstractManipulator {
                 //.setThresholdAlgorithm(thresholdAlgorithm)
                 .setNumberDoubleDilationsForPseudoCellSegmentation(numberOfDilations)
                 .setNumberDoubleErosionsForPseudoCellSegmentation(numberOfErosions)
-                .setDoPseudoCellSegmentation(doPseudoCellSegmentation)
                 .setProjectionVisualisationOnScreen(showProjections)
                 .setProjectionVisualisationToDisc(saveProjections)
                 .setFirstFrame(firstFrame)
