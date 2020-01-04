@@ -236,7 +236,7 @@ public class HalfCylinderMaxProjectionMeasurements extends DataSetMeasurements{
 
             System.out.println("Whole analysis took " + (System.currentTimeMillis() - timestamp) + " ms");
 
-            dataSet.saveMeasurementTable(resultsTable, "hscmpMeasurements.csv");
+            dataSet.saveMeasurementTable(resultsTable, "processed/hscmpMeasurements.csv");
         }
         cancelDialog.setVisible(false);
         cancelDialog.dispose();
