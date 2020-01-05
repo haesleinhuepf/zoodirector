@@ -21,26 +21,32 @@ public class ClearControlSession {
     public String[] getDataSetNames() {
         if (datasetnames == null) {
             File folder = new File(path);
+            if (folder == null) {
+                System.out.println("Path not found: " + path);
+                return new String[0];
+            }
 
             ArrayList<String> names = new ArrayList<>();
 
-            for (File file : folder.listFiles()) {
-                if (!file.isDirectory()) {
-                    String filename = file.getName();
-                    //System.out.println("Checking " + filename);
-                    if (filename.endsWith("index.txt")) {
-                        //System.out.println("Checking2 " + filename);
+            if (folder.listFiles() != null) {
+                for (File file : folder.listFiles()) {
+                    if (!file.isDirectory()) {
+                        String filename = file.getName();
+                        //System.out.println("Checking " + filename);
+                        if (filename.endsWith("index.txt")) {
+                            //System.out.println("Checking2 " + filename);
 
-                        String otherFilename = filename.replace("index.txt", "metadata.txt");
-                        if (new File(path + otherFilename).exists()) {
-                            //System.out.println("Checking3 " + filename);
+                            String otherFilename = filename.replace("index.txt", "metadata.txt");
+                            if (new File(path + otherFilename).exists()) {
+                                //System.out.println("Checking3 " + filename);
 
-                            names.add(filename.replace(".index.txt", ""));
+                                names.add(filename.replace(".index.txt", ""));
+                            }
                         }
                     }
                 }
+                Collections.sort(names);
             }
-            Collections.sort(names);
 
             datasetnames = new String[names.size()];
             if (names.size() > 0) {
