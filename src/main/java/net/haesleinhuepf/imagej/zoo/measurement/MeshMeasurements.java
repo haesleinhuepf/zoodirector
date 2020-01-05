@@ -35,6 +35,7 @@ public class MeshMeasurements extends DataSetMeasurements {
     int numberDoubleDilationsForPseudoCellSegmentation = 17;
     //private String thresholdAlgorithm = "Triangle";
     private double threshold = 250;
+    private boolean exportMesh = false;
 
     public MeshMeasurements(ClearControlDataSet dataSet) {
         super(dataSet);
@@ -127,7 +128,7 @@ public class MeshMeasurements extends DataSetMeasurements {
         cancelDialog.setModal(false);
         cancelDialog.show();
 
-        for (int f = firstFrame; f <= lastFrame; f++) {
+        for (int f = firstFrame; f <= lastFrame; f+=frameStep) {
             if (cancelDialog.wasCanceled() || cancelDialog.wasOKed()) {
                 break;
             }
@@ -251,7 +252,9 @@ public class MeshMeasurements extends DataSetMeasurements {
             clijx.setColumn(touch_matrix, 0, 0);
             //clijx.show(touch_matrix, "touch");
 
-            ClearCLBuffer average_distance_of_touching_neighbors = measureAverageDistanceOfTouchingNeighbors(touch_matrix, distance_matrix, segmented_cells);
+            ClearCLBuffer distance_vector = measureAverageDistanceOfTouchingNeighbors(touch_matrix, distance_matrix);
+
+            ClearCLBuffer average_distance_of_touching_neighbors = visualiseAverageDistanceOfTouchingNeighbors(distance_vector, segmented_cells);
             //clijx.show(averag_distance_of_touching_neighbors, "averag_distance_of_touching_neighbors");
 
             //clijx.showGrey(touch_matrix, "touch_matrix");
@@ -309,7 +312,13 @@ public class MeshMeasurements extends DataSetMeasurements {
 
 
             // -----------------------------------------------------------------------
-            // Visualisation
+            // Visualisation / output
+            if (exportMesh) {
+                if (number_of_spots > 1 && numberOfTouches > 0) {
+                    clijx.writeVTKLineListToDisc(pointlist, touch_matrix, outputFolder + "_vtk_mesh/" + filename.replace(".raw", "") + ".vtk");
+                    clijx.writeXYZPointListToDisc(pointlist, outputFolder + "_vtk_mesh/" + filename.replace(".raw", "") + ".xyz");
+                }
+            }
 
             if (projection_visualisation_on_screen || projection_visualisation_to_disc) {
 
@@ -328,8 +337,6 @@ public class MeshMeasurements extends DataSetMeasurements {
                 ClearCLBuffer max_mesh_x = max_x_projection(mesh);
                 ClearCLBuffer max_mesh_y = max_y_projection(mesh);
                 ClearCLBuffer max_mesh_z = max_z_projection(mesh);
-
-
 
 
                 if (projection_visualisation_to_disc) {
@@ -419,10 +426,14 @@ public class MeshMeasurements extends DataSetMeasurements {
         return sum / count;
     }
 */
-    private ClearCLBuffer measureAverageDistanceOfTouchingNeighbors(ClearCLBuffer touch_matrix, ClearCLBuffer distance_matrix, ClearCLBuffer label_map) {
-
+    private ClearCLBuffer measureAverageDistanceOfTouchingNeighbors(ClearCLBuffer touch_matrix, ClearCLBuffer distance_matrix) {
         ClearCLBuffer distanceVector = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
         clijx.averageDistanceOfTouchingNeighbors(distance_matrix, touch_matrix, distanceVector);
+        return distanceVector;
+    }
+
+    private ClearCLBuffer visualiseAverageDistanceOfTouchingNeighbors(ClearCLBuffer distanceVector,  ClearCLBuffer label_map) {
+
 
         //clijx.show(distanceVector, "disvec");
 
@@ -430,7 +441,7 @@ public class MeshMeasurements extends DataSetMeasurements {
         ClearCLBuffer parametricDistanceImage = clijx.create(label_map.getDimensions(), clijx.Float);
         clijx.replaceIntensities(label_map, distanceVector, parametricDistanceImage);
 
-        clijx.release(distanceVector);
+        //clijx.release(distanceVector);
 
         return parametricDistanceImage;
     }
@@ -674,22 +685,30 @@ public class MeshMeasurements extends DataSetMeasurements {
     public static void main(String ... arg) {
         new ImageJ();
 
-        CLIJx.getInstance("2070");
+        CLIJx.getInstance("2060");
 
         String sourceFolder = "C:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/";
         String datasetFolder = "C0opticsprefused";
 
         ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
 
-        int startFrame = 1105;
-        int endFrame = startFrame + 100;
+        int startFrame = 800;
+        int endFrame = startFrame + 1000;
 
         new MeshMeasurements(dataSet).
                 setProjectionVisualisationToDisc(false).
-                setProjectionVisualisationOnScreen(true).
+                setProjectionVisualisationOnScreen(false).
+                setExportMesh(true).
                 setThreshold(300).
-                setFirstFrame(startFrame).
-                setLastFrame(endFrame).
+                setFirstFrame(37).
+//                setFirstFrame(startFrame).
+  //              setFrameStep(100).
+    //            setLastFrame(endFrame).
                 run();
+    }
+
+    private MeshMeasurements setExportMesh(boolean exportMesh) {
+        this.exportMesh = exportMesh;
+        return this;
     }
 }
