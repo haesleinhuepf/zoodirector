@@ -315,8 +315,10 @@ public class MeshMeasurements extends DataSetMeasurements {
             // Visualisation / output
             if (exportMesh) {
                 if (number_of_spots > 1 && numberOfTouches > 0) {
+                    clijx.stopWatch("export vtk");
                     clijx.writeVTKLineListToDisc(pointlist, touch_matrix, outputFolder + "_vtk_mesh/" + filename.replace(".raw", "") + ".vtk");
-                    clijx.writeXYZPointListToDisc(pointlist, outputFolder + "_vtk_mesh/" + filename.replace(".raw", "") + ".xyz");
+                    //clijx.writeXYZPointListToDisc(pointlist, outputFolder + "_vtk_mesh/" + filename.replace(".raw", "") + ".xyz");
+                    clijx.stopWatch("export vtk");
                 }
             }
 
@@ -692,7 +694,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
 
-        int startFrame = 800;
+        int startFrame = 1100;
         int endFrame = startFrame + 1000;
 
         new MeshMeasurements(dataSet).
@@ -700,7 +702,7 @@ public class MeshMeasurements extends DataSetMeasurements {
                 setProjectionVisualisationOnScreen(false).
                 setExportMesh(true).
                 setThreshold(300).
-                setFirstFrame(37).
+                setFirstFrame(1000).
 //                setFirstFrame(startFrame).
   //              setFrameStep(100).
     //            setLastFrame(endFrame).
