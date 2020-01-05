@@ -161,7 +161,7 @@ public class HalfCylinderMaxProjectionMeasurements extends DataSetMeasurements{
         cancelDialog.setModal(false);
         cancelDialog.show();
 
-        for (int f = firstFrame; f <= lastFrame; f++) {
+        for (int f = firstFrame; f <= lastFrame; f+=frameStep) {
             if (cancelDialog.wasCanceled() || cancelDialog.wasOKed()) {
                 break;
             }

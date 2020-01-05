@@ -7,6 +7,7 @@ public abstract class DataSetMeasurements  implements Runnable {
 
     protected int firstFrame = 0;
     protected int lastFrame = 0;
+    protected int frameStep = 1;
 
     public DataSetMeasurements(ClearControlDataSet dataSet) {
         this.dataSet = dataSet;
@@ -20,6 +21,11 @@ public abstract class DataSetMeasurements  implements Runnable {
 
     public DataSetMeasurements setLastFrame(int lastFrame) {
         this.lastFrame = lastFrame;
+        return this;
+    }
+
+    protected DataSetMeasurements setFrameStep(int frameStep) {
+        this.frameStep = frameStep;
         return this;
     }
 }

@@ -27,7 +27,7 @@ public class ImageQualityMeasurements extends DataSetMeasurements {
 
         ClearCLBuffer projection = null;
 
-        for (int f = firstFrame; f <= lastFrame; f++) {
+        for (int f = firstFrame; f <= lastFrame; f+=frameStep) {
             System.out.println("f " + f);
             maximumProjectionAnalysisResults.incrementCounter();
             meanProjectionAnalysisResults.incrementCounter();
