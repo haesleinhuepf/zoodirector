@@ -24,13 +24,15 @@ public class DataExplorerWindow extends JFrame {
 	private JPanel contentPane;
 	JTree tree;
 	private JScrollPane scrollPane;
-	private JSplitPane splitPane;
+	//private JSplitPane splitPane;
 
 	private TreeBuilder treeBuilder;
 	private AbstractTreeNode rootNode;
 
 	Timer heartbeat = null;
 	int delay = 1000; // milliseconds
+
+	private JFrame propertyFrame = null;
 
 	/**
 	 * Launch the application.
@@ -56,6 +58,10 @@ public class DataExplorerWindow extends JFrame {
 	 * Create the frame.
 	 */
 	public DataExplorerWindow() {
+
+		propertyFrame = new JFrame();
+		propertyFrame.setVisible(true);
+
 		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		addWindowListener(new WindowAdapter() {
 			@Override
@@ -71,13 +77,15 @@ public class DataExplorerWindow extends JFrame {
 		contentPane.setLayout(new BorderLayout(0, 0));
 		setContentPane(contentPane);
 
-		splitPane = new JSplitPane();
-		splitPane.setResizeWeight(0.66);
-		splitPane.setOrientation(JSplitPane.VERTICAL_SPLIT);
-		contentPane.add(splitPane, BorderLayout.CENTER);
+
+		//splitPane = new JSplitPane();
+		//splitPane.setResizeWeight(0.66);
+		//splitPane.setOrientation(JSplitPane.VERTICAL_SPLIT);
+		//contentPane.add(splitPane, BorderLayout.CENTER);
 
 		scrollPane = new JScrollPane();
-		splitPane.setLeftComponent(scrollPane);
+		//splitPane.setLeftComponent(scrollPane);
+		contentPane.add(scrollPane);
 
 		tree = new JTree();
 		tree.setCellRenderer(new CustomTreeCellRenderer());
@@ -109,7 +117,7 @@ public class DataExplorerWindow extends JFrame {
 
 		scrollPane.setViewportView(tree);
 
-		splitPane.setRightComponent(new JPanel());
+		//splitPane.setRightComponent(new JPanel());
 
 		createMenus(null);
 
@@ -144,6 +152,13 @@ public class DataExplorerWindow extends JFrame {
 			}
 			formerTreeNode = currentTreeNode;
 		}
+		if (propertyFrame != null) {
+			propertyFrame.setSize(getWidth(), 200);
+			propertyFrame.setLocation(getX(), getY() + getHeight());
+		}
+//		if (splitPane != null) {
+//			splitPane.setDividerLocation(0.8);
+//		}
 		/*
 		if (currentTreeNode != null && treeModel != null && IJ.getImage() != null
 				&& (!(currentTreeNode instanceof RootTreeNode))
@@ -366,10 +381,17 @@ public class DataExplorerWindow extends JFrame {
 			System.out.println("adding content pane");
 
 			JScrollPane scrollPane = new JScrollPane();
+			scrollPane.setPreferredSize(new Dimension(getWidth(), 200));
+			scrollPane.setMaximumSize(new Dimension(getWidth(), 200));
+			scrollPane.setMinimumSize(new Dimension(getWidth(), 200));
 			scrollPane.setViewportView(((PropertiesManipulatable) treeNode).getManipulatorPanel());
-			splitPane.setRightComponent(scrollPane);
+			propertyFrame.setContentPane(scrollPane);
+			propertyFrame.validate();
+			//splitPane.setRightComponent(scrollPane);
 		} else {
-			splitPane.setRightComponent(new JPanel());
+			propertyFrame.setContentPane(new JPanel());
+			propertyFrame.validate();
+			//splitPane.setRightComponent(new JPanel());
 		}
 
 		// Rebuild menus
