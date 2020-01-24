@@ -44,7 +44,7 @@ public class Plotter extends AbstractManipulator {
     static int plotHeight = 480;
 
     static int numberOfImages = 100;
-    static boolean saveImages = true;
+    static boolean saveImages = false;
 
     public static Double minY = null;
     public static Double maxY = null;
@@ -72,10 +72,16 @@ public class Plotter extends AbstractManipulator {
 
 
     private void generatePlot(ClearControlInteractivePlot plot) {
+        ClearControlDataSet dataSet = plot.getDataSet();
+        int frameStart = dataSet.getFrameRangeStart();
+        int frameEnd = dataSet.getFrameRangeEnd();
+        double startTime = dataSet.getTimesInMinutes()[frameStart];
+        double endTime = dataSet.getTimesInMinutes()[frameEnd];
+
         GenericDialog gd = new GenericDialog("Plot over time");
         gd.addNumericField("Start", startTime, 2);
         gd.addNumericField("End", endTime, 2);
-        gd.addChoice("Time unit for x-axis", new String[]{"Seconds", "Minutes", "Hours"}, timeUnit);
+        gd.addChoice("Time unit for x-axis", new String[]{"Seconds", "Minutes", "Hours"}, "Minutes");
         gd.addNumericField("Number of images", Plotter.numberOfImages, 0);
         gd.addNumericField("Plot size x", plotWidth, 0);
         gd.addNumericField("Plot size y", plotHeight, 0);

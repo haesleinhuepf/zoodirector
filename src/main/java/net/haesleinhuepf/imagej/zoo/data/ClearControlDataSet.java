@@ -49,7 +49,10 @@ public class ClearControlDataSet {
     private double[] voxelDimZs;
     private String path;
     private String dataset;
-    private int currentFrame;
+    private int currentFrameRangeStart;
+    private int currentFrameRangeEnd;
+
+    private AnnotatedFrames annotatedFrames;
 
     public ClearControlDataSet(String path, String dataset) {
         this.path = path;
@@ -57,8 +60,6 @@ public class ClearControlDataSet {
         if (!this.path.endsWith("/")){
             this.path = this.path + "/";
         }
-
-
         this.dataset = dataset;
 
         File folder = new File(this.path);
@@ -146,6 +147,8 @@ public class ClearControlDataSet {
             }
             count++;
         }
+
+        annotatedFrames = new AnnotatedFrames(this);
 
         ImagePlus.addImageListener(new CCImpListener());
     }
@@ -320,22 +323,29 @@ public class ClearControlDataSet {
         return dataset;
     }
 
-    public void setCurrentFrame(int frame) {
+    boolean adaptingCurrentFrame = false;
+    public void setCurrentFrameRange(int frameStart, int frameEnd) {
 
-        if (currentFrame != frame) {
-            currentFrame = frame;
+        if (adaptingCurrentFrame) {
+            return;
+        }
+        adaptingCurrentFrame = true;
+        if (currentFrameRangeStart != frameStart || currentFrameRangeEnd != frameEnd) {
+            currentFrameRangeStart = frameStart;
+            currentFrameRangeEnd = frameEnd;
             for (ImagePlus thumbnail : registeredThumbnails) {
-                if (thumbnail.getNFrames() > frame) {
-                    thumbnail.setT(frame + 1);
+                if (thumbnail.getNFrames() > frameStart) {
+                    thumbnail.setT(frameStart + 1);
                 }
             }
 
-            if (data != null && data.getNFrames() > frame) {
-                data.setT(frame + 1);
+            if (data != null && data.getNFrames() > frameStart) {
+                data.setT(frameStart + 1);
                 IJ.run(data, "Enhance Contrast", "saturated=0.35");
             }
             refreshPlots();
         }
+        adaptingCurrentFrame = false;
 
     }
 
@@ -364,6 +374,17 @@ public class ClearControlDataSet {
         return voxelDimZs[frame];
     }
 
+    public int getFrameRangeStart() {
+        return currentFrameRangeStart;
+    }
+    public int getFrameRangeEnd() {
+        return currentFrameRangeEnd;
+    }
+
+    public ResultsTable getAnnotationsAsTable() {
+        return annotatedFrames.getTable();
+    }
+
     private class CCImpListener implements ImageListener {
         boolean acting = false;
         @Override
@@ -385,12 +406,12 @@ public class ClearControlDataSet {
             }
             if (imp == data) {
                 acting = true;
-                setCurrentFrame(data.getT());
+                setCurrentFrameRange(data.getT(), data.getT());
                 acting = false;
             }
             if (registeredThumbnails.contains(imp)) {
                 acting = true;
-                setCurrentFrame(imp.getT());
+                setCurrentFrameRange(imp.getT(), imp.getT());
                 acting = false;
             }
         }
@@ -405,17 +426,19 @@ public class ClearControlDataSet {
     }
 
     private void refreshPlots() {
-        System.out.println("Refresh plots " + currentFrame);
+        System.out.println("Refresh plots " + currentFrameRangeStart);
         if (data == null) {
             return;
         }
         for (Plot plot : plots) {
             double[] times = getTimesInMinutes();
-            if (times.length > currentFrame) {
-                double timeInMinutes = getTimesInMinutes()[currentFrame];
+            if (times.length > currentFrameRangeStart) {
+                double timeStartInMinutes = getTimesInMinutes()[currentFrameRangeStart];
+                double timeEndInMinutes = getTimesInMinutes()[currentFrameRangeEnd];
                 System.out.println("p" + plot);
-                double x = plot.scaleXtoPxl(timeInMinutes);
-                Roi roi = new Roi(x, 0, 1, plot.getImagePlus().getHeight() - 20);
+                double xStart = plot.scaleXtoPxl(timeStartInMinutes);
+                double xEnd = plot.scaleXtoPxl(timeEndInMinutes);
+                Roi roi = new Roi(xStart, 0, (xEnd - xStart + 1), plot.getImagePlus().getHeight() - 20);
                 roi.setStrokeColor(Color.red);
                 plot.getImagePlus().setRoi(roi);
             } else {
@@ -466,5 +489,13 @@ public class ClearControlDataSet {
             return false; // if numeric: don't show
         } catch (Exception e) { }
         return true;
+    }
+
+    public void addAnnotation(int frame, String annotation) {
+        annotatedFrames.putAnnotation(frame, annotation);
+    }
+
+    public void addAnnotation(String annotation) {
+        annotatedFrames.putAnnotation(currentFrameRangeStart, annotation);
     }
 }

@@ -699,10 +699,11 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         new MeshMeasurements(dataSet).
                 setProjectionVisualisationToDisc(false).
-                setProjectionVisualisationOnScreen(false).
+                setProjectionVisualisationOnScreen(true).
                 setExportMesh(true).
                 setThreshold(300).
                 setFirstFrame(1000).
+                setLastFrame(1002).
 //                setFirstFrame(startFrame).
   //              setFrameStep(100).
     //            setLastFrame(endFrame).

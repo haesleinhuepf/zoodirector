@@ -3,16 +3,22 @@ package net.haesleinhuepf.imagej.zoo.data.interactors;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
+import ij.WindowManager;
 import ij.gui.GenericDialog;
+import ij.measure.ResultsTable;
 import ij.plugin.HyperStackConverter;
+import ij.text.TextWindow;
 import net.haesleinhuepf.explorer.tree.manipulators.AbstractManipulator;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.measurement.ImageQualityMeasurements;
 import net.haesleinhuepf.imagej.zoo.measurement.MeshMeasurements;
 
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 
 /**
@@ -26,6 +32,8 @@ import java.io.File;
 public class DataSetHandler extends AbstractManipulator {
     public DataSetHandler(ClearControlDataSet dataSet) {
 
+        setLayout(new GridLayout(4, 3));
+
         Plotter.readPrefs();
         {
             int formLine = newFormLine();
@@ -33,6 +41,7 @@ public class DataSetHandler extends AbstractManipulator {
             add(lblC, "2, " + formLine);
 
             JButton btnColor = new JButton("Extract...");
+            btnColor.setSize(50, 10);
             btnColor.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
@@ -41,6 +50,8 @@ public class DataSetHandler extends AbstractManipulator {
 
             });
             add(btnColor, "4, " + formLine);
+            add(new JLabel());
+
         }
 
         {
@@ -49,6 +60,7 @@ public class DataSetHandler extends AbstractManipulator {
             add(lblC, "2, " + formLine);
 
             JButton btnColor = new JButton("Analyse...");
+            btnColor.setSize(50, 10);
             btnColor.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
@@ -57,6 +69,8 @@ public class DataSetHandler extends AbstractManipulator {
 
             });
             add(btnColor, "4, " + formLine);
+            add(new JLabel());
+
         }
 
         {
@@ -65,6 +79,7 @@ public class DataSetHandler extends AbstractManipulator {
             add(lblC, "2, " + formLine);
 
             JButton btnColor = new JButton("Analyse...");
+            btnColor.setSize(50, 10);
             btnColor.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
@@ -73,7 +88,73 @@ public class DataSetHandler extends AbstractManipulator {
 
             });
             add(btnColor, "4, " + formLine);
+            add(new JLabel());
         }
+
+        {
+            int formLine = newFormLine();
+            JLabel lblC = new JLabel("Annotations");
+            add(lblC, "2, " + formLine);
+
+            JButton btnColor = new JButton("Add");
+            btnColor.setSize(50, 10);
+            btnColor.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    addAnnotation(dataSet);
+                }
+
+            });
+            add(btnColor, "4, " + formLine);
+
+
+            JButton btnShow = new JButton("Show");
+            btnShow.setSize(50, 10);
+            btnShow.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    showAnnotations(dataSet);
+                }
+
+            });
+            add(btnShow, "4, " + formLine);
+        }
+    }
+
+    private void showAnnotations(ClearControlDataSet dataSet) {
+        ResultsTable table = dataSet.getAnnotationsAsTable();
+        table.show(dataSet.getShortName() + " annotations");
+
+        TextWindow window = (TextWindow)WindowManager.getWindow(dataSet.getShortName() + " annotations");
+        window.getTextPanel().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                System.out.println("Table clicked");
+                int selectedIndex = window.getTextPanel().getSelectionStart();
+
+                System.out.println("selec " + selectedIndex );
+                if (selectedIndex >= 0) {
+                    int frame = (int) table.getValue("Frame", selectedIndex);
+                    System.out.println("frame " + frame );
+                    dataSet.setCurrentFrameRange(frame, frame);
+                }
+                super.mouseReleased(e);
+            }
+        });
+
+
+    }
+
+    private void addAnnotation(ClearControlDataSet dataSet) {
+        GenericDialog gd = new GenericDialog("Add annotation");
+        gd.addMessage("Add annotation for frame " + dataSet.getFrameRangeStart());
+        gd.addStringField("Annotation", "");
+        gd.showDialog();
+        if (gd.wasCanceled()) {
+            return;
+        }
+        String annotation = gd.getNextString();
+        dataSet.addAnnotation(annotation);
     }
 
     private void analyseMesh(ClearControlDataSet dataSet) {
@@ -130,10 +211,15 @@ public class DataSetHandler extends AbstractManipulator {
 
     private String thumbnailFolder = "";
     private void generateThumbnails(ClearControlDataSet dataSet) {
+        int frameStart = dataSet.getFrameRangeStart();
+        int frameEnd = dataSet.getFrameRangeEnd();
+        double startTime = dataSet.getTimesInMinutes()[frameStart];
+        double endTime = dataSet.getTimesInMinutes()[frameEnd];
+
         GenericDialog gd = new GenericDialog("Plot over time");
-        gd.addNumericField("Start", Plotter.startTime, 2);
-        gd.addNumericField("End", Plotter.endTime, 2);
-        gd.addChoice("Time unit for x-axis", new String[]{"Seconds", "Minutes", "Hours"}, Plotter.timeUnit);
+        gd.addNumericField("Start", startTime, 2);
+        gd.addNumericField("End", endTime, 2);
+        gd.addChoice("Time unit for x-axis", new String[]{"Seconds", "Minutes", "Hours"}, "Minutes");
         gd.addNumericField("Number of images", Plotter.numberOfImages, 0);
         gd.addChoice("Thumbnail folder", dataSet.getThumbnailFolderNames(), thumbnailFolder);
         gd.addCheckbox("Save images to processed folder", Plotter.saveImages);
@@ -148,7 +234,7 @@ public class DataSetHandler extends AbstractManipulator {
         Plotter.endTime = gd.getNextNumber();
         Plotter.timeUnit = gd.getNextChoice();
         Plotter.numberOfImages = (int) gd.getNextNumber();
-        thumbnailFolder = gd.getNextString();
+        thumbnailFolder = gd.getNextChoice();
         Plotter.saveImages = gd.getNextBoolean();
 
         Plotter.writePrefs();

@@ -3,9 +3,12 @@ package net.haesleinhuepf.imagej.zoo.visualisation;
 import ij.IJ;
 import ij.gui.Plot;
 import ij.gui.PlotWindow;
+import ij.gui.Roi;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
 
+import javax.swing.*;
+import java.awt.*;
 import java.awt.event.*;
 
 public class ClearControlInteractivePlot {
@@ -58,12 +61,27 @@ public class ClearControlInteractivePlot {
                 public void mouseReleased(MouseEvent e) {
                     //System.out.println(e.getX() + "/" + e.getY());
                     //System.out.println(generateThumbnails.descaleX(e.getX()) + "/" + generateThumbnails.descaleY(e.getY()));
-                    double timeInMinues = plot.descaleX(e.getX());
-                    int frame = dataSet.getFirstFrameAfterTimeInSeconds(timeInMinues * 60);
-
-                    dataSet.setCurrentFrame(frame);
 
                     super.mouseClicked(e);
+
+                    // SwingUtilities.invokeLater(() -> {
+                        Roi roi = plot.getImagePlus().getRoi();
+                        if (roi != null) {
+                            Rectangle bounds = roi.getBounds();
+
+                            double timeStartInMinues = plot.descaleX(bounds.x);
+                            double timeEndInMinues = plot.descaleX(bounds.x + bounds.width);
+
+                            int frameStart = dataSet.getFirstFrameAfterTimeInSeconds(timeStartInMinues * 60);
+                            int frameEnd = dataSet.getFirstFrameAfterTimeInSeconds(timeEndInMinues * 60);
+                            dataSet.setCurrentFrameRange(frameStart, frameEnd);
+                        } else {
+                            double timeInMinues = plot.descaleX(e.getX());
+                            int frame = dataSet.getFirstFrameAfterTimeInSeconds(timeInMinues * 60);
+                            dataSet.setCurrentFrameRange(frame, frame);
+                        }
+                    //});
+
                 }
             });
             dataSet.addPlot(plot);
