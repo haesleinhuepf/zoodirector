@@ -1,9 +1,7 @@
 package net.haesleinhuepf.imagej.zoo.data.interactors;
 
-import ij.IJ;
-import ij.ImagePlus;
-import ij.ImageStack;
-import ij.WindowManager;
+import fiji.util.gui.GenericDialogPlus;
+import ij.*;
 import ij.gui.GenericDialog;
 import ij.measure.ResultsTable;
 import ij.plugin.HyperStackConverter;
@@ -78,7 +76,7 @@ public class DataSetHandler extends AbstractManipulator {
             JLabel lblC = new JLabel("Analyse mesh measures over time");
             add(lblC, "2, " + formLine);
 
-            JButton btnColor = new JButton("Analyse...");
+            JButton btnColor = new JButton("Analyse");
             btnColor.setSize(50, 10);
             btnColor.addActionListener(new ActionListener() {
                 @Override
@@ -88,7 +86,18 @@ public class DataSetHandler extends AbstractManipulator {
 
             });
             add(btnColor, "4, " + formLine);
-            add(new JLabel());
+
+            JButton btnAnalyseWithGaps = new JButton("Analyse with gaps");
+            btnAnalyseWithGaps.setSize(50, 10);
+            btnAnalyseWithGaps.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    analyseMeshWithGaps(dataSet);
+                }
+
+            });
+            add(btnAnalyseWithGaps, "4, " + formLine);
+
         }
 
         {
@@ -141,8 +150,6 @@ public class DataSetHandler extends AbstractManipulator {
                 super.mouseReleased(e);
             }
         });
-
-
     }
 
     private void addAnnotation(ClearControlDataSet dataSet) {
@@ -199,10 +206,172 @@ public class DataSetHandler extends AbstractManipulator {
                 .setFirstFrame(firstFrame)
                 .setLastFrame(lastFrame)
                 ).start();
+    }
+
+    private void analyseMeshWithGaps(ClearControlDataSet dataSet) {
+        int frameStart = dataSet.getFrameRangeStart();
+        int frameEnd = dataSet.getFrameRangeEnd();
+        double startTime = dataSet.getTimesInMinutes()[frameStart];
+        double endTime = dataSet.getTimesInMinutes()[frameEnd];
+
+        GenericDialogPlus gd = new GenericDialogPlus("Analyse mesh over time");
+        gd.addNumericField("Start", startTime, 2);
+        gd.addNumericField("End", endTime, 2);
+        gd.addChoice("Time unit for x-axis", new String[]{"Seconds", "Minutes", "Hours"}, "Minutes");
+        gd.addNumericField("Number of images", Plotter.numberOfImages, 0);
+
+        gd.addNumericField("Zoom factor (in microns)", 1.5, 2);
+
+        gd.addNumericField("Translation X", 0, 2);
+        gd.addNumericField("Translation Y", 0, 2);
+        gd.addNumericField("Translation Z", 0, 2);
+
+        gd.addNumericField("Rotation X", 0, 2);
+        gd.addNumericField("Rotation Y", 0, 2);
+        gd.addNumericField("Rotation Z", 0, 2);
+
+        gd.addNumericField("Spot detection blur sigma", 3, 1);
+        gd.addNumericField("Background subtraction blur sigma", 0, 1);
+        gd.addNumericField("Spot detection out of sample threshold", 250, 1);
+
+        gd.addNumericField("Pseudo cell segmentation dual dilations", 17, 0);
+        gd.addNumericField("Pseudo cell segmentation dual erosions", 7, 0);
+
+        gd.addCheckbox("Save projections to disc", true);
+        gd.addCheckbox("Show projections on screen", true);
+
+        gd.addDirectoryField("Result folder", dataSet.getPath() + "processed/output/");
+
+        gd.showDialog();
+
+        if (gd.wasCanceled()) {
+            return;
+        }
+
+        Plotter.startTime = gd.getNextNumber();
+        Plotter.endTime = gd.getNextNumber();
+        Plotter.timeUnit = gd.getNextChoice();
+        Plotter.numberOfImages = (int) gd.getNextNumber();
+
+        double zoomFactor = gd.getNextNumber();
+
+        double translationX = gd.getNextNumber();
+        double translationY = gd.getNextNumber();
+        double translationZ = gd.getNextNumber();
+
+        double rotationX = gd.getNextNumber();
+        double rotationY = gd.getNextNumber();
+        double rotationZ = gd.getNextNumber();
+
+        double blurSigma = gd.getNextNumber();
+        double backgroundSubtractionBlurSigma = gd.getNextNumber();
+        double outOfSampleThreshold = gd.getNextNumber();
+
+        int numberOfDualDilations = (int) gd.getNextNumber();
+        int numberOfDualErosions = (int) gd.getNextNumber();
+
+        Plotter.saveImages = gd.getNextBoolean();
+        boolean showResultsOnScreen = gd.getNextBoolean();
+
+        String outputFolder = gd.getNextChoice();
+
+        Plotter.writePrefs();
+
+        analyseMeshWithGaps(dataSet,
+                outputFolder,
+                Plotter.startTime,
+                Plotter.endTime,
+                Plotter.timeUnit,
+                Plotter.numberOfImages,
+                zoomFactor,
+                translationX,
+                translationY,
+                translationZ,
+                rotationX,
+                rotationY,
+                rotationZ,
+                blurSigma,
+                backgroundSubtractionBlurSigma,
+                outOfSampleThreshold,
+                numberOfDualDilations,
+                numberOfDualErosions,
+                Plotter.saveImages,
+                showResultsOnScreen);
+    }
 
 
+    public static void analyseMeshWithGaps(ClearControlDataSet dataSet, String outputFolder, double startTime, double endTime, String timeUnit, int numberOfImages, double zoomFactor, double translationX, double translationY, double translationZ, double rotationX, double rotationY, double rotationZ,  double blurSigma, double backgroundSubtractionBlurSigma, double outOfSampleThreshold, int numberOfDualDilations, int numberOfDualErosions, boolean saveImages, boolean showResultsOnScreen) {
 
+        //new ImageJ();
 
+        MeshMeasurements mm = new MeshMeasurements(dataSet);
+        mm.setZoomFactor(zoomFactor);
+        mm.setBlurSigma(blurSigma);
+        mm.setBackgroundSubtractionSigma(backgroundSubtractionBlurSigma);
+        mm.setThreshold(outOfSampleThreshold);
+        mm.setNumberDoubleDilationsForPseudoCellSegmentation(numberOfDualDilations);
+        mm.setNumberDoubleErosionsForPseudoCellSegmentation(numberOfDualErosions);
+        mm.setProjectionVisualisationOnScreen(showResultsOnScreen);
+        mm.setProjectionVisualisationToDisc(saveImages);
+
+        mm.setTranslationX(translationX);
+        mm.setTranslationY(translationY);
+        mm.setTranslationZ(translationZ);
+        mm.setRotationX(rotationX);
+        mm.setRotationY(rotationY);
+        mm.setRotationZ(rotationZ);
+
+        if (saveImages) {
+            new File(outputFolder).mkdirs();
+        }
+        //int numberOfImages = 500;
+        //int numberOfMinutes = 5  * 60 * 24;
+
+        double startTimeInMinutes = startTime;
+        double endTimeInMinutes = endTime;
+        if (timeUnit == "Seconds") {
+            startTimeInMinutes = startTime / 60;
+            endTimeInMinutes = endTime / 60;
+        }
+        if (timeUnit == "Hours") {
+            startTimeInMinutes = startTime * 60;
+            endTimeInMinutes = endTime * 60;
+        }
+
+        double numberOfMinutes = endTimeInMinutes - startTimeInMinutes;
+
+        double timeStepInMinutes = 1.0 * numberOfMinutes / (numberOfImages - 1);
+
+        int firstFrame = dataSet.getFirstFrameAfterTimeInSeconds(startTimeInMinutes * 60 );
+        int lastFrame = dataSet.getFirstFrameAfterTimeInSeconds(endTimeInMinutes * 60);
+
+        int numberOfFrames = lastFrame - firstFrame + 1;
+
+        System.out.println("Number of frames: " + numberOfFrames);
+
+        ResultsTable table = new ResultsTable();
+
+        //ImagePlus[] images = new ImagePlus[numberOfFrames];
+        ImageStack stack = null;
+        for (int i = 0; i < numberOfImages; i++) {
+            //System.out.println();
+            double time = startTimeInMinutes + i * timeStepInMinutes;
+            int frame = dataSet.getFirstFrameAfterTimeInSeconds(time * 60);
+            System.out.println("Frame " + frame);
+
+            String timepoint = "000000" + i;
+            timepoint = timepoint.substring(timepoint.length() - 6, timepoint.length());
+
+            mm.processFrame(outputFolder, table, frame, timepoint);
+
+            //ImagePlus thumbnail = dataSet.getThumbnailsFromFolder(thumbnailFolder);
+            //thumbnail.setT(frame + 1);
+
+        }
+
+        if (showResultsOnScreen) {
+            table.show("Mesh measurements");
+        }
     }
 
     private void analyseMaximumProjection(ClearControlDataSet dataSet) {

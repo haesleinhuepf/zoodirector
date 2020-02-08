@@ -45,10 +45,13 @@ public class ZooExplorerPlugin implements PlugIn {
 
         new ImageJ();
 
-        CLIJx.getInstance("2060");
-        ZooExplorerPlugin.open("D:/");
+        //CLIJx.getInstance("2060");
+        //ZooExplorerPlugin.open("D:/");
 
-        //ZooExplorerPlugin.open("C:/structure/data/");
+        ZooExplorerPlugin.open("C:/structure/data/");
+
+
+        //ZooExplorerPlugin.open("\\\\fileserver\\myersspimdata\\IMAGING\\archive_data_good/");
     }
 
 }
