@@ -4,8 +4,10 @@ import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.gui.GenericDialog;
+import ij.gui.WaitForUserDialog;
 import ij.measure.Calibration;
 import ij.measure.ResultsTable;
+import net.haesleinhuepf.clij.clearcl.ClearCL;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.clearcl.ClearCLImage;
 import net.haesleinhuepf.clijx.CLIJx;
@@ -69,6 +71,9 @@ public class MeshMeasurements extends DataSetMeasurements {
     private double cutShiftSpeed = 0;
     private double cutTimeInSeconds = 0;
     private double cutDeceleration = 0.9;
+
+
+    private boolean eliminateSubSurfaceCells = false;
 
     public MeshMeasurements setCut(
             double gapX,
@@ -182,6 +187,10 @@ public class MeshMeasurements extends DataSetMeasurements {
         return this;
     }
 
+    public MeshMeasurements setEliminateSubSurfaceCells(boolean eliminateSubSurfaceCells) {
+        this.eliminateSubSurfaceCells = eliminateSubSurfaceCells;
+        return this;
+    }
 
     @Override
     public void run() {
@@ -372,6 +381,38 @@ public class MeshMeasurements extends DataSetMeasurements {
         // cell segmentation
         ClearCLBuffer segmented_cells = pseudo_cell_segmentation(labelled_spots);
         clijx.stopWatch("cell segmentation");
+
+        if (eliminateSubSurfaceCells) {
+
+            int number_of_spots = (int) clijx.maximumOfAllPixels(labelled_spots);
+
+            ClearCLBuffer pointlist = clijx.create(new long[]{number_of_spots, 3});
+            clijx.spotsToPointList(labelled_spots, pointlist);
+
+            // add another label as back plane to close the surface on that side
+            clijx.setPlane(segmented_cells, 0, number_of_spots + 1);
+
+            // eliminate cells inside
+            ClearCLBuffer new_segmented_cells = clijx.create(segmented_cells);
+            clijx.excludeLabelsSubSurface(pointlist, segmented_cells, new_segmented_cells, segmented_cells.getWidth() / 2, segmented_cells.getHeight() / 2, 0);
+            clijx.setPlane(new_segmented_cells, 0, 0);
+            clijx.release(segmented_cells);
+            segmented_cells = new_segmented_cells;
+
+            // eliminate the same cells in the spot detection
+            ClearCLBuffer new_labelled_spots = clijx.create(labelled_spots);
+            ClearCLBuffer temp = clijx.create(labelled_spots);
+            clijx.binaryAnd(labelled_spots, segmented_cells, temp);
+            clijx.multiplyImages(temp, segmented_cells, new_labelled_spots);
+            clijx.release(labelled_spots);
+            labelled_spots = new_labelled_spots;
+
+            clijx.release(segmented_cells);
+            segmented_cells = pseudo_cell_segmentation(labelled_spots);
+
+            //clijx.show(segmented_cells, "cells");
+            //new WaitForUserDialog("wa").show();
+        }
 
         ClearCLBuffer max_membranes = null;
         ClearCLBuffer mean_membranes = null;
@@ -993,7 +1034,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
                 //clij2.minimumImages(temp, slice, temp2);
 
-                clijx.applyVectorfield2D(slice, shiftX, shiftY, temp);
+                clijx.applyVectorField2D(slice, shiftX, shiftY, temp);
                 clijx.copySlice(temp, input, z);
             }
 
@@ -1030,6 +1071,7 @@ public class MeshMeasurements extends DataSetMeasurements {
                 setProjectionVisualisationOnScreen(true).
                 setExportMesh(false).
                 setThreshold(300).
+                setEliminateSubSurfaceCells(true).
                 setCut(
                       98,
                       482,
@@ -1041,8 +1083,8 @@ public class MeshMeasurements extends DataSetMeasurements {
                         dataSet.getTimesInSeconds()[1050],
                         0.9
                 ).
-                setFirstFrame(1040).
-                setLastFrame(1100).
+                setFirstFrame(1000).
+                setLastFrame(1099).
 //                setFirstFrame(startFrame).
                 //              setFrameStep(100).
                 //            setLastFrame(endFrame).
