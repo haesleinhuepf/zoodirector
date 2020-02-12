@@ -103,12 +103,12 @@
 		<dependency>
 			<groupId>net.haesleinhuepf</groupId>
 			<artifactId>clij-advanced-filters_</artifactId>
-			<version>0.21.0</version>
+			<version>0.21.2</version>
 		</dependency>
 		<dependency>
 			<groupId>net.clearcontrol</groupId>
 			<artifactId>clij-clearcl</artifactId>
-			<version>0.10.3</version>
+			<version>0.10.4</version>
 		</dependency>
 		<dependency>
 			<groupId>net.clearcontrol</groupId>
@@ -118,7 +118,7 @@
 		<dependency>
 			<groupId>net.haesleinhuepf</groupId>
 			<artifactId>clij-core</artifactId>
-			<version>1.4.3</version>
+			<version>1.4.5</version>
 		</dependency>
 		<dependency>
 			<groupId>de.mpicbg.rhaase</groupId>
