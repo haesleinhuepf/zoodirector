@@ -75,6 +75,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
 
     private boolean eliminateSubSurfaceCells = false;
+    private boolean eliminateOnSurfaceCells = false;
 
     public MeshMeasurements setCut(
             double gapX,
@@ -192,6 +193,11 @@ public class MeshMeasurements extends DataSetMeasurements {
         this.eliminateSubSurfaceCells = eliminateSubSurfaceCells;
         return this;
     }
+    public MeshMeasurements setEliminateOnSurfaceCells(boolean eliminateOnSurfaceCells) {
+        this.eliminateOnSurfaceCells = eliminateOnSurfaceCells;
+        return this;
+    }
+
 
     @Override
     public void run() {
@@ -420,6 +426,40 @@ public class MeshMeasurements extends DataSetMeasurements {
             clijx.release(pointlist);
             clijx.release(temp);
         }
+        if (eliminateOnSurfaceCells) {
+
+            int number_of_spots = (int) clijx.maximumOfAllPixels(labelled_spots);
+
+            ClearCLBuffer pointlist = clijx.create(new long[]{number_of_spots, 3});
+            clijx.spotsToPointList(labelled_spots, pointlist);
+
+            // add another label as back plane to close the surface on that side
+            clijx.setPlane(segmented_cells, 0, number_of_spots + 1);
+
+            // eliminate cells inside
+            ClearCLBuffer new_segmented_cells = clijx.create(segmented_cells);
+            clijx.excludeLabelsOnSurface(pointlist, segmented_cells, new_segmented_cells, segmented_cells.getWidth() / 2, segmented_cells.getHeight() / 2, -200);
+            clijx.setPlane(new_segmented_cells, 0, 0);
+            clijx.release(segmented_cells);
+            segmented_cells = new_segmented_cells;
+
+            // eliminate the same cells in the spot detection
+            ClearCLBuffer new_labelled_spots = clijx.create(labelled_spots);
+            ClearCLBuffer temp = clijx.create(labelled_spots);
+            clijx.binaryAnd(labelled_spots, segmented_cells, temp);
+            clijx.multiplyImages(temp, segmented_cells, new_labelled_spots);
+            clijx.release(labelled_spots);
+            labelled_spots = new_labelled_spots;
+
+            clijx.release(segmented_cells);
+            segmented_cells = pseudo_cell_segmentation(labelled_spots);
+
+            //clijx.show(segmented_cells, "cells");
+            //new WaitForUserDialog("wa").show();
+            clijx.release(pointlist);
+            clijx.release(temp);
+        }
+
 
         //ClearCLBuffer max_membranes = null;
         //ClearCLBuffer mean_membranes = null;
@@ -1135,6 +1175,7 @@ public class MeshMeasurements extends DataSetMeasurements {
                     setNumberDoubleErosionsForPseudoCellSegmentation(4).
                     setExportMesh(false).
                     setThreshold(75).
+                    setEliminateOnSurfaceCells(true).
                     //setBlurSigma(1).
                     //setEliminateSubSurfaceCells(true).
                     /*setCut(
@@ -1167,8 +1208,8 @@ public class MeshMeasurements extends DataSetMeasurements {
 
             ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
 
-            int startFrame = 1100;
-            int endFrame = startFrame + 1000;
+            int startFrame = 700;
+            int endFrame = startFrame + 2000;
 
             new MeshMeasurements(dataSet).
                     setCLIJx(CLIJx.getInstance("2070")).
@@ -1176,7 +1217,7 @@ public class MeshMeasurements extends DataSetMeasurements {
                     setProjectionVisualisationOnScreen(true).
                     setExportMesh(false).
                     setThreshold(300).
-                    //setEliminateSubSurfaceCells(true).
+                    setEliminateOnSurfaceCells(true).
 //                    setCut(
 //                          98,
 //                          482,
@@ -1188,8 +1229,8 @@ public class MeshMeasurements extends DataSetMeasurements {
 //                            dataSet.getTimesInSeconds()[1050],
 //                            0.9
 //                    ).
-                    setFirstFrame(1000).
-                    setLastFrame(1199).
+                    setFirstFrame(startFrame).
+                    setLastFrame(endFrame).
     //                setFirstFrame(startFrame).
                     //              setFrameStep(100).
                     //            setLastFrame(endFrame).
