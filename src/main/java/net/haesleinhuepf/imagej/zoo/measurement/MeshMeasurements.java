@@ -7,21 +7,27 @@ import ij.gui.GenericDialog;
 import ij.gui.WaitForUserDialog;
 import ij.measure.Calibration;
 import ij.measure.ResultsTable;
+import ij.process.ImageProcessor;
 import net.haesleinhuepf.clij.clearcl.ClearCL;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.clearcl.ClearCLImage;
 import net.haesleinhuepf.clijx.CLIJx;
 import net.haesleinhuepf.clijx.utilities.CLIJUtilities;
+import net.haesleinhuepf.imagej.clijutils.CLIJxUtils;
 import net.haesleinhuepf.imagej.zoo.ZooUtilities;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.scijava.util.VersionUtils;
 
+import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.List;
+
+import static net.haesleinhuepf.imagej.clijutils.CLIJxUtils.*;
 
 public class MeshMeasurements extends DataSetMeasurements {
     CLIJx clijx;
@@ -76,6 +82,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
     private boolean eliminateSubSurfaceCells = false;
     private boolean eliminateOnSurfaceCells = false;
+    private boolean drawText = false;
 
     public MeshMeasurements setCut(
             double gapX,
@@ -276,6 +283,8 @@ public class MeshMeasurements extends DataSetMeasurements {
         HashMap<String, ClearCLBuffer> resultImages = new HashMap<String, ClearCLBuffer>();
 
         long timestamp = System.currentTimeMillis();
+
+        CLIJxUtils.clijx = clijx;
 
         // IJ.run("Close All");
         clijx.stopWatch("");
@@ -497,7 +506,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         // -----------------------------------------------------------------------
         // neighborhood analysis
-        ClearCLBuffer distance_matrix = generateDistanceMatrix(pointlist, number_of_spots);
+        ClearCLBuffer distance_matrix = generateDistanceMatrix(pointlist, number_of_spots, zoomFactor);
         resultImages.put("14_distance_matrix", distance_matrix);
         resultImages.put("15_pixel2", clijx.create(1,1,1));
 
@@ -663,7 +672,35 @@ public class MeshMeasurements extends DataSetMeasurements {
             if (projection_visualisation_to_disc) {
                 for (String key : resultKeys) {
                     String saveKey = key; //.substring(2);
-                    clijx.saveAsTIF(resultImages.get(key), outputFolder + saveKey + "/" + filename + ".tif");
+                    ClearCLBuffer buffer = resultImages.get(key);
+                    if (drawText) {
+                        ImagePlus imp = clijx.pull(buffer);
+                        if (key.endsWith("image")) {
+                            imp.setDisplayRange(0, 1000);
+                        } else if (key.endsWith("dist") || key.endsWith("_ang") || key.contains("_neigh_touch")) {
+                            imp.setDisplayRange(0, 255);
+                        } else if (key.contains("mesh")) {
+                            imp.setDisplayRange(0, 1);
+                        }
+                        IJ.run(imp, "8-bit", "");
+
+                        ImageProcessor ip = imp.getProcessor();
+                        ip.setColor(new Color(255, 255, 255));
+                        ip.setFont(new Font("SanSerif", Font.PLAIN, 15));
+                        ip.drawString(key, 10, 30);
+                        ip.setFont(new Font("SanSerif", Font.PLAIN, 25));
+                        ip.drawString(humanReadableTime((int) dataSet.getTimesInSeconds()[frame]), 10, 65);
+
+                        imp.getCalibration().pixelWidth = 1.0 / zoomFactor;
+                        imp.getCalibration().pixelHeight = 1.0 / zoomFactor;
+                        imp.getCalibration().setUnit("um");
+                        IJ.run(imp,
+                                "Scale Bar...",
+                                "width=100 height=5 font=25 color=White background=None location=[Lower Left]");
+
+                        buffer = clijx.push(imp);
+                    }
+                    clijx.saveAsTIF(buffer, outputFolder + saveKey + "/" + filename + ".tif");
                 }
                 /*
                 clijx.saveAsTIF(max_image, outputFolder + "_max_image/" + filename + ".tif");
@@ -789,17 +826,7 @@ public class MeshMeasurements extends DataSetMeasurements {
             return sum / count;
         }
     */
-    private ClearCLBuffer measureAverageDistanceOfTouchingNeighbors(ClearCLBuffer touch_matrix, ClearCLBuffer distance_matrix) {
-        ClearCLBuffer distanceVector = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
-        clijx.averageDistanceOfTouchingNeighbors(distance_matrix, touch_matrix, distanceVector);
-        return distanceVector;
-    }
 
-    private ClearCLBuffer measureAverageSurfaceAngle(ClearCLBuffer pointlist, ClearCLBuffer touch_matrix) {
-        ClearCLBuffer distanceVector = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
-        clijx.averageAngleBetweenAdjacentTriangles(pointlist, touch_matrix, distanceVector);
-        return distanceVector;
-    }
 
     private ClearCLBuffer generateParametricImage(ClearCLBuffer distanceVector, ClearCLBuffer label_map) {
 
@@ -894,17 +921,6 @@ public class MeshMeasurements extends DataSetMeasurements {
         return clijx.pull(detected_spots);
     }
 
-    private ClearCLBuffer distanceMatrixToMesh(ClearCLBuffer inputImage, ClearCLBuffer pointlist, ClearCLBuffer distance_matrix) {
-
-        ClearCLBuffer mesh = clijx.create(inputImage);
-        mesh.setName("mesh");
-
-        ClearCLBuffer closestSpotIndices = clijx.create(new long[]{pointlist.getWidth(), 10});
-        clijx.nClosestPoints(distance_matrix,closestSpotIndices);
-        clijx.pointIndexListToMesh(pointlist,closestSpotIndices,mesh);
-        closestSpotIndices.close();
-        return mesh;
-    }
 
 
     private ClearCLBuffer distanceMatrixToMesh2(ClearCLBuffer inputImage, ClearCLBuffer pointlist, ClearCLBuffer distance_matrix) {
@@ -924,15 +940,6 @@ public class MeshMeasurements extends DataSetMeasurements {
         return mesh;
     }
 
-    private ClearCLBuffer labelSpots(ClearCLBuffer detected_spots) {
-        ClearCLBuffer cca_result = clijx.create(detected_spots.getDimensions(), clijx.Float);
-        clijx.stopWatch("");
-        //clijx.connectedComponentsLabeling(detected_spots, cca_result);
-        //clijx.stopWatch("CCA");
-        clijx.labelSpots(detected_spots, cca_result);
-        clijx.stopWatch("LS");
-        return cca_result;
-    }
 
     private ClearCLBuffer pseudo_cell_segmentation(ClearCLBuffer labelled_spots) {
 
@@ -969,106 +976,7 @@ public class MeshMeasurements extends DataSetMeasurements {
         return tempSpots1;
     }
 
-    private ClearCLBuffer label_outlines(ClearCLBuffer labels) {
-        ClearCLBuffer outlines = clijx.create(labels);
-        outlines.setName("outlines");
-        ClearCLBuffer label_outlines = clijx.create(labels);
-        label_outlines.setName("label_outlines");
-        clijx.detectLabelEdges(labels,outlines);
-        clijx.multiplyImages(labels,outlines,label_outlines);
-        clijx.release(outlines);
-        return label_outlines;
-    }
 
-    private ClearCLBuffer generateDistanceMatrix(ClearCLBuffer pointlist, int number_of_spots) {
-
-        ClearCLBuffer distance_matrix = clijx.create(new long[]{number_of_spots + 1, number_of_spots + 1});
-        ClearCLBuffer temp = clijx.create(new long[]{number_of_spots + 1, number_of_spots + 1});
-        distance_matrix.setName("distance_matrix");
-        clijx.generateDistanceMatrix(pointlist, pointlist, temp);
-
-
-        // correct measurement to have it in microns
-        clijx.activateSizeIndependentKernelCompilation();
-        clijx.multiplyImageAndScalar(temp, distance_matrix, 1.0 / zoomFactor);
-
-        //ClearCLBuffer neighbor_avg_distance_vector = clijx.create(new long[]{distance_matrix.getWidth(), 1, 1});
-        //neighbor_avg_distance_vector.setName("neighbor_avg_distance_vector");
-        //clijx.averageDistanceOfClosestPoints(distance_matrix, neighbor_avg_distance_vector, 5);
-        //ClearCLBuffer neighbor_avg_distance_map = clijx.create(labelmap);
-        //neighbor_avg_distance_map.setName("neighbor_avg_distance_map");
-        //clijx.replaceIntensities(labelmap, neighbor_avg_distance_vector, neighbor_avg_distance_map);
-        //clijx.release(neighbor_avg_distance_vector);
-
-        return distance_matrix;
-    }
-
-
-    private ClearCLBuffer generateTouchMatrix(ClearCLBuffer pointlist, int number_of_spots, ClearCLBuffer labelmap) {
-        // determine which labels touch
-        ClearCLBuffer touch_matrix = clijx.create(new long[]{number_of_spots + 1, number_of_spots + 1}, clijx.UnsignedByte);
-        touch_matrix.setName("touch_matrix");
-        clijx.generateTouchMatrix(labelmap, touch_matrix);
-        return touch_matrix;
-    }
-
-    private ClearCLBuffer fillTouchMatrixCompletely(ClearCLBuffer touch_matrix) {
-        ClearCLBuffer matrix1 = clijx.create(touch_matrix);
-        ClearCLBuffer matrix2 = clijx.create(touch_matrix);
-
-        clijx.copy(touch_matrix, matrix1);
-        clijx.transposeXY(touch_matrix, matrix2);
-        clijx.addImages(matrix1, matrix2, touch_matrix);
-
-        clijx.release(matrix1);
-        clijx.release(matrix2);
-
-        return touch_matrix;
-    }
-
-    private ClearCLBuffer nonzero_min_projection(ClearCLBuffer stack) {
-        ClearCLBuffer image2D = clijx.create(new long[]{stack.getWidth(), stack.getHeight()});
-        image2D.setName("NONZERO_MIN_"+stack.getName());
-        clijx.minimumZProjectionThresholdedBounded(stack,image2D,0,0,stack.getDepth());
-        return image2D;
-    }
-
-    private ClearCLBuffer max_x_projection(ClearCLBuffer stack) {
-        ClearCLBuffer image2D = clijx.create(new long[]{stack.getDepth(), stack.getHeight()});
-        image2D.setName("MAX_x_" + stack.getName());
-        clijx.maximumXProjection(stack,image2D);
-        return image2D;
-    }
-
-    private ClearCLBuffer max_y_projection(ClearCLBuffer stack) {
-        ClearCLBuffer image2D = clijx.create(new long[]{stack.getWidth(), stack.getDepth()});
-        image2D.setName("MAX_y_" + stack.getName());
-        clijx.maximumYProjection(stack,image2D);
-        return image2D;
-    }
-
-    private ClearCLBuffer max_z_projection(ClearCLBuffer stack) {
-        ClearCLBuffer image2D = clijx.create(new long[]{stack.getWidth(), stack.getHeight()});
-        image2D.setName("MAX_z_" + stack.getName());
-        clijx.maximumZProjection(stack,image2D);
-        return image2D;
-    }
-
-    private ClearCLBuffer[] arg_max_projection(ClearCLBuffer stack) {
-        ClearCLBuffer image2D = clijx.create(new long[]{stack.getWidth(), stack.getHeight()});
-        ClearCLBuffer argImage2D = clijx.create(new long[]{stack.getWidth(), stack.getHeight()});
-        image2D.setName("MAX_"+stack.getName());
-        argImage2D.setName("ARGMAX_"+stack.getName());
-        clijx.argMaximumZProjection(stack,image2D,argImage2D);
-        return new ClearCLBuffer[]{image2D,argImage2D};
-    }
-
-    private ClearCLBuffer mean_projection(ClearCLBuffer stack) {
-        ClearCLBuffer image2D = clijx.create(new long[] {stack.getWidth(),stack.getHeight()});
-        image2D.setName("MEAN_" + stack.getName());
-        clijx.meanZProjection(stack,image2D);
-        return image2D;
-    }
 
     public MeshMeasurements setExportMesh(boolean exportMesh) {
         this.exportMesh = exportMesh;
@@ -1208,27 +1116,28 @@ public class MeshMeasurements extends DataSetMeasurements {
 
             ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
 
-            int startFrame = 700;
-            int endFrame = startFrame + 2000;
+            int startFrame = 1050;
+            int endFrame = startFrame + 100;
 
             new MeshMeasurements(dataSet).
-                    setCLIJx(CLIJx.getInstance("2070")).
+                    setCLIJx(CLIJx.getInstance("2060")).
                     setProjectionVisualisationToDisc(true).
                     setProjectionVisualisationOnScreen(true).
                     setExportMesh(false).
                     setThreshold(300).
-                    setEliminateOnSurfaceCells(true).
-//                    setCut(
-//                          98,
-//                          482,
-//                          10,
-//                          170,
-//                          30,
-//                           275,
-//                            50,
-//                            dataSet.getTimesInSeconds()[1050],
-//                            0.9
-//                    ).
+                    //setEliminateOnSurfaceCells(true).
+                    setCut(
+                          98,
+                          482,
+                          10,
+                          170,
+                          30,
+                           275,
+                            25,
+                            dataSet.getTimesInSeconds()[1050],
+                            0.9
+                    ).
+                    setAnnotateImagesWithText(true).
                     setFirstFrame(startFrame).
                     setLastFrame(endFrame).
     //                setFirstFrame(startFrame).
@@ -1236,5 +1145,10 @@ public class MeshMeasurements extends DataSetMeasurements {
                     //            setLastFrame(endFrame).
                             run();
         }
+    }
+
+    private MeshMeasurements setAnnotateImagesWithText(boolean drawText) {
+        this.drawText = drawText;
+        return this;
     }
 }
