@@ -13,7 +13,7 @@ public class Utilities {
         }
         String tool = IJ.getToolName();
 
-        Toolbar.removeMacroTools();
+        //Toolbar.removeMacroTools();
 
         Toolbar.addPlugInTool(new InteractiveBrightnessContrast());
         Toolbar.addPlugInTool(new InteractiveZoom());
