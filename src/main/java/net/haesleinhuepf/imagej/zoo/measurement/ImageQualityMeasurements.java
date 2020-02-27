@@ -7,6 +7,7 @@ import ij.measure.ResultsTable;
 import net.haesleinhuepf.clij.CLIJ;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
+import net.haesleinhuepf.clijx.CLIJx;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
 
@@ -23,7 +24,7 @@ public class ImageQualityMeasurements extends DataSetMeasurements {
         ResultsTable maximumProjectionAnalysisResults = new ResultsTable();
         ResultsTable meanProjectionAnalysisResults = new ResultsTable();
 
-        CLIJ clij = CLIJ.getInstance();
+        CLIJx clijx = CLIJx.getInstance();
 
         ClearCLBuffer projection = null;
 
@@ -38,24 +39,27 @@ public class ImageQualityMeasurements extends DataSetMeasurements {
             ImagePlus timePointStack = dataSet.getImageData(f);
 
 
-            ClearCLBuffer input = clij.push(timePointStack);
-            projection = clij.create(new long[]{input.getWidth(), input.getHeight()}, NativeTypeEnum.Float);
+            ClearCLBuffer input = clijx.push(timePointStack);
+            projection = clijx.create(new long[]{input.getWidth(), input.getHeight()}, NativeTypeEnum.Float);
 
-            clij.op().maximumZProjection(input, projection);
+            clijx.maximumZProjection(input, projection);
             new SliceAnalyser(projection, FocusMeasures.getFocusMeasuresArray(), maximumProjectionAnalysisResults).run();
 
-            clij.op().meanZProjection(input, projection);
+            clijx.meanZProjection(input, projection);
             new SliceAnalyser(projection, FocusMeasures.getFocusMeasuresArray(), meanProjectionAnalysisResults).run();
 
             input.close();
 
+            dataSet.saveMeasurementTable(maximumProjectionAnalysisResults, "processed/autopilotFocusMeasures_maxProjection.csv");
+            dataSet.saveMeasurementTable(meanProjectionAnalysisResults, "processed/autopilotFocusMeasures_meanProjection.csv");
+
+            clijx.clear();
         }
         projection.close();
         maximumProjectionAnalysisResults.show("Max projection analysis results");
         meanProjectionAnalysisResults.show("Mean projection analysis Results");
 
-        dataSet.saveMeasurementTable(maximumProjectionAnalysisResults, "processed/autopilotFocusMeasures_maxProjection.csv");
-        dataSet.saveMeasurementTable(meanProjectionAnalysisResults, "processed/autopilotFocusMeasures_meanProjection.csv");
+
     }
 
     public static void main(String ... arg) {
