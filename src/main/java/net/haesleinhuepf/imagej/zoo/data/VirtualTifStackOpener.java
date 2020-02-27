@@ -47,8 +47,9 @@ public class VirtualTifStackOpener implements PlugIn {
             pixelSizeY = gd.getNextNumber();
             pixelSizeZ = gd.getNextNumber();
             pixelUnit = gd.getNextString();
+            numberOfChannels = (int) gd.getNextNumber();
 
-            ImagePlus imp = open(path, pixelSizeX, pixelSizeY, pixelSizeZ, pixelUnit);
+            ImagePlus imp = open(path, pixelSizeX, pixelSizeY, pixelSizeZ, pixelUnit, numberOfChannels);
             imp.show();
         }
 
