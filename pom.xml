@@ -15,7 +15,7 @@
 	<groupId>net.haesleinhuepf</groupId>
 	<!-- note: the artifactId must contain an underscore _ to make ImageJ handle it correctly.-->
 	<artifactId>zoodirector_</artifactId>
-	<version>0.5.0</version>
+	<version>0.6.0</version>
 
 	<name>zoodirector</name>
 	<description>zoodirector</description>
@@ -103,7 +103,7 @@
 		<dependency>
 			<groupId>net.haesleinhuepf</groupId>
 			<artifactId>clij-advanced-filters_</artifactId>
-			<version>0.21.5</version>
+			<version>0.21.6</version>
 		</dependency>
 		<dependency>
 			<groupId>net.clearcontrol</groupId>
