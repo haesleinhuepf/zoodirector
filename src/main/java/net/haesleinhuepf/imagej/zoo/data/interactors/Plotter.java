@@ -10,6 +10,7 @@ import ij.gui.Plot;
 import ij.plugin.HyperStackConverter;
 import ij.plugin.HyperStackMaker;
 import ij.plugin.RGBStackMerge;
+import ij.process.ImageProcessor;
 import net.haesleinhuepf.explorer.tree.manipulators.AbstractManipulator;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
@@ -48,6 +49,7 @@ public class Plotter extends AbstractManipulator {
 
     public static Double minY = null;
     public static Double maxY = null;
+    public static boolean rgbPlot = true;
 
 
     public Plotter(ClearControlInteractivePlot plot) {
@@ -59,7 +61,7 @@ public class Plotter extends AbstractManipulator {
         add(lblC, "2, " + formLine);
 
         JButton btnColor = new JButton("Plot...");
-        btnColor.addActionListener(new ActionListener(){
+        btnColor.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 generatePlot(plot);
@@ -86,6 +88,7 @@ public class Plotter extends AbstractManipulator {
         gd.addNumericField("Plot size x", plotWidth, 0);
         gd.addNumericField("Plot size y", plotHeight, 0);
         gd.addCheckbox("Save images to processed folder", saveImages);
+        gd.addCheckbox("RGB plot", rgbPlot);
 
         gd.showDialog();
 
@@ -97,9 +100,10 @@ public class Plotter extends AbstractManipulator {
         endTime = gd.getNextNumber();
         timeUnit = gd.getNextChoice();
         numberOfImages = (int) gd.getNextNumber();
-        plotWidth = (int)gd.getNextNumber();
-        plotHeight = (int)gd.getNextNumber();
+        plotWidth = (int) gd.getNextNumber();
+        plotHeight = (int) gd.getNextNumber();
         saveImages = gd.getNextBoolean();
+        rgbPlot = gd.getNextBoolean();
 
         writePrefs();
 
@@ -113,15 +117,21 @@ public class Plotter extends AbstractManipulator {
                 plot.getName(),
                 plotWidth,
                 plotHeight,
-                saveImages);
-        imp = HyperStackConverter.toHyperStack(imp, 1, 1, imp.getNSlices());
+                saveImages,
+                rgbPlot);
+
+
+        imp = HyperStackConverter.toHyperStack(imp, imp.getNChannels(), 1, imp.getNSlices());
         imp.setT(imp.getNFrames());
         imp.show();
     }
 
-
-
+    @Deprecated
     public static ImagePlus plot(ClearControlDataSet dataSet, double startTime, double endTime, String timeUnit, int numberOfImages, MeasurementTable table, String title, int widthInPixels, int heightInPixels, boolean saveImages) {
+        return plot(dataSet, startTime, endTime, timeUnit, numberOfImages, table, title, widthInPixels, heightInPixels, saveImages);
+    }
+
+    public static ImagePlus plot(ClearControlDataSet dataSet, double startTime, double endTime, String timeUnit, int numberOfImages, MeasurementTable table, String title, int widthInPixels, int heightInPixels, boolean saveImages, boolean rgbPlot) {
 
         double startTimeInMinutes = startTime;
         double endTimeInMinutes = endTime;
@@ -207,6 +217,28 @@ public class Plotter extends AbstractManipulator {
         }
 
         ImagePlus result = new ImagePlus(title, stack);
+
+        if (rgbPlot) {
+            for (int i = 0; i < result.getNSlices(); i++) {
+                result.setZ(i + 1);
+                result.getProcessor().invert();
+            }
+
+            result.setZ(result.getNSlices() - 1);
+            ImageProcessor lastSlice = result.getProcessor();
+            ImageStack background = new ImageStack(lastSlice.getWidth(), lastSlice.getHeight());
+            for (int i = 0; i < result.getNSlices(); i++) {
+                background.addSlice(lastSlice);
+            }
+
+            result = RGBStackMerge.mergeChannels(new ImagePlus[]{result, new ImagePlus("title", background)}, false);
+            result.setC(1);
+            IJ.run(result,"Green", "");
+            result.setC(2);
+            IJ.run(result, "Magenta", "");
+        }
+
+
         return result;
 
     }
