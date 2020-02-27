@@ -15,6 +15,7 @@ import net.haesleinhuepf.clijx.CLIJx;
 import net.haesleinhuepf.imagej.clijutils.CLIJxUtils;
 import net.haesleinhuepf.imagej.zoo.data.VirtualTifStack;
 import net.haesleinhuepf.imagej.zoo.data.VirtualTifStackOpener;
+import net.imagej.updater.DefaultUploaderService;
 
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -305,14 +306,19 @@ public class Crop4D implements PlugIn {
 
     ClearCLBuffer buffer = null;
     int cachedFrame = -1;
+    int cachedChannel = -1;
     private void showPreview(CLIJx clijx, ImagePlus imp, int formerFrame, double formerBackgroundSubtractionSigma, int cropX, int cropY, int cropZ, int cropWidth, int cropHeight, int cropDepth, boolean interpolation) {
         System.out.println("Ratio " + XZratio);
 
         clijx.stopWatch("");
 
-        if (buffer == null || cachedFrame != imp.getFrame()) {
-            buffer = clijx.pushCurrentZStack(imp);
+        if (buffer == null || cachedFrame != imp.getFrame() || cachedChannel != imp.getC()) {
+
+            ImagePlus imp2 = new Duplicator().run(imp, imp.getC(), imp.getC(), 1, imp.getNSlices(), imp.getFrame(), imp.getFrame());
+
+            buffer = clijx.push(imp2);
             cachedFrame = imp.getFrame();
+            cachedChannel = imp.getC();
             clijx.stopWatch("push");
         }
 
