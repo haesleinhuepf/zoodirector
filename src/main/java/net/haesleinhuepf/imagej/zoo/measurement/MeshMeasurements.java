@@ -580,6 +580,8 @@ public class MeshMeasurements extends DataSetMeasurements {
         ClearCLBuffer relevantDistances = clijx.create(distance_matrix.getDimensions(), clijx.Float);
         clijx.multiplyImages(distance_matrix, touch_matrix, relevantDistances);
 
+        System.out.println("Dist mat " + Arrays.toString(distance_matrix.getDimensions()));
+        System.out.println(clijx.reportMemory());
         double meanDistance = clijx.meanOfPixelsAboveThreshold(relevantDistances, 0);
         double varianceDistance = clijx.varianceOfMaskedPixels(relevantDistances, touch_matrix, meanDistance);
         meshMeasurementTable.addValue("mean_neighbor_distance", meanDistance);
