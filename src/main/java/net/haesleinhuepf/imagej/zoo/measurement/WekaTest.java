@@ -1,12 +1,16 @@
 package net.haesleinhuepf.imagej.zoo.measurement;
 
+import ij.ImageJ;
 import ij.measure.ResultsTable;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
+import net.haesleinhuepf.clij2.converters.helptypes.Double1;
+import net.haesleinhuepf.clij2.converters.helptypes.Double3;
 import net.haesleinhuepf.clijx.CLIJx;
 import net.haesleinhuepf.clijx.weka.CLIJxWeka;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
+import weka.core.Attribute;
 
 import java.nio.FloatBuffer;
 
@@ -14,7 +18,8 @@ import java.nio.FloatBuffer;
 public class WekaTest {
     public static void main(String... args) {
 
-        String sourceFolder = "C:/structure/data/2019-10-28-17-22-59-23-Finsterwalde_Tribolium_nGFP/";
+        String sourceFolder = "C:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/";
+                //"C:/structure/data/2019-10-28-17-22-59-23-Finsterwalde_Tribolium_nGFP/";
         String datasetFolder = "C0opticsprefused";
 
         ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
@@ -24,27 +29,35 @@ public class WekaTest {
 
         ClearCLBuffer featureStack = makeDefaultFeatureStack(clijx, dataSet);
 
-        double[] truth = new double[(int)featureStack.getWidth()];
-        int t = 0;
-        for (int i = 0; i < truth.length; i++) {
-            if ( i > 600 && i < 800) {
-                truth[i] = 2;
-                t++;
-            } else {
-                truth[i] = 1;
-            }
-        }
-        //System.out.println("t " + t);
+        double[] truth = dataSet.getPhases();
+                //new double[(int)featureStack.getWidth()];
 
-        ClearCLBuffer clTruth = doubleArrayToClearCLBuffer(clijx, truth, 2, 0);
+        ClearCLBuffer clTruth_temp = doubleArrayToClearCLBuffer(clijx, truth);
+        ClearCLBuffer clTruth = clijx.create(clTruth_temp);
+        clijx.closeIndexGapsInLabelMap(clTruth_temp, clTruth);
+
+
+        printFirst(clijx, clTruth_temp, 50);
+        printFirst(clijx, clTruth, 50);
+        System.out.println("maxt: " + clijx.maximumOfAllPixels(clTruth_temp));
+        System.out.println("max: " + clijx.maximumOfAllPixels(clTruth));
+
+        new ImageJ();
+        clijx.show(featureStack, "fs");
+        clijx.show(clTruth, "truth");
+
 
 
 
         CLIJxWeka cw = new CLIJxWeka(clijx, featureStack, clTruth);
         System.out.println("" + cw.getClassifier());
+    }
 
-
-
+    private static void printFirst(CLIJx clijx, ClearCLBuffer input, int length) {
+        ClearCLBuffer temp = clijx.create(new long[]{length, input.getHeight()}, NativeTypeEnum.Float);
+        clijx.crop(input, temp, 0, 0);
+        clijx.print(temp);
+        clijx.release(temp);
     }
 
     static ClearCLBuffer makeDefaultFeatureStack(CLIJx clijx, ClearControlDataSet dataSet)
@@ -58,8 +71,8 @@ public class WekaTest {
         }
 
 
-        ClearCLBuffer numberOfSpots = doubleArrayToClearCLBuffer(clijx, spotCountTable.getColumn("Number of spots"), 2, 0);
-
+        ClearCLBuffer numberOfSpots = doubleArrayToClearCLBuffer(clijx, spotCountTable.getColumn("Number of spots"));
+        System.out.println(numberOfSpots);
 
         String[] focusFeatures = {
                 "Maximum",
@@ -80,7 +93,7 @@ public class WekaTest {
         int featureCount = 0;
         featureCount = collectFeatures(clijx, numberOfSpots, featureStack, numberOfSigmas, featureCount);
         for (String anotherFeature : focusFeatures) {
-            ClearCLBuffer buffer = doubleArrayToClearCLBuffer(clijx, focusMeasuresTable.getColumn(anotherFeature), 2, 0);
+            ClearCLBuffer buffer = doubleArrayToClearCLBuffer(clijx, focusMeasuresTable.getColumn(anotherFeature));
             featureCount = collectFeatures(clijx, buffer, featureStack, numberOfSigmas, featureCount);
             clijx.release(buffer);
         }
@@ -119,7 +132,9 @@ public class WekaTest {
     }
 
 
-    static ClearCLBuffer doubleArrayToClearCLBuffer(CLIJx clijx, double[] input, int dimensions, int targetDimension) {
+    static ClearCLBuffer doubleArrayToClearCLBuffer(CLIJx clijx, double[] input) {
+        return clijx.push(new Double1(input));
+        /*
         float[] temp = new float[input.length];
         for (int i = 0; i < temp.length; i++) {
             temp[i] = (float) input[i];
@@ -135,7 +150,7 @@ public class WekaTest {
         ClearCLBuffer clbuffer = clijx.create(dims, NativeTypeEnum.Float);
 
         clbuffer.readFrom(floatBuffer, true);
-        return clbuffer;
+        return clbuffer;*/
     }
 
 }
