@@ -188,7 +188,10 @@ public class Crop4D implements PlugIn {
                     changed = changed || (cropZ != formerCropZ);
                     changed = changed || (formerFrame != imp.getFrame());
                     changed = changed || (formerBackgroundSubtractionSigma != backgroundSigmaSlider.getValue());
+                    changed = changed || (formerFrameEnd != frameEndSlider.getValue());
+                    changed = changed || (formerFrameStart != frameStartSlider.getValue());
                     changed = changed || (formerLinearInterpolation != linearInterpolationCheckbox.getState());
+
 
                     //System.out.println("Mousedown: " + mouseDown);
 
@@ -201,8 +204,8 @@ public class Crop4D implements PlugIn {
                         formerCropDepth = cropDepth;
                         formerCropZ = cropZ;
                         formerBackgroundSubtractionSigma = backgroundSigmaSlider.getValue();
-                        formerFrameEnd = frameStartSlider.getValue();
-                        formerFrameStart = frameEndSlider.getValue();
+                        formerFrameEnd = frameEndSlider.getValue();
+                        formerFrameStart = frameStartSlider.getValue();
                         formerLinearInterpolation = linearInterpolationCheckbox.getState();
                     } else {
                         try {
