@@ -6,16 +6,16 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.scijava</groupId>
-		<artifactId>pom-scijava</artifactId>
-		<version>27.0.1</version>
+		<groupId>net.haesleinhuepf</groupId>
+		<artifactId>clij-parent-pom</artifactId>
+		<version>1.5.0</version>
 		<relativePath />
 	</parent>
 
 	<groupId>net.haesleinhuepf</groupId>
 	<!-- note: the artifactId must contain an underscore _ to make ImageJ handle it correctly.-->
 	<artifactId>zoodirector_</artifactId>
-	<version>0.6.0</version>
+	<version>0.7.1</version>
 
 	<name>zoodirector</name>
 	<description>zoodirector</description>
@@ -102,23 +102,23 @@
 		</dependency>
 		<dependency>
 			<groupId>net.haesleinhuepf</groupId>
-			<artifactId>clij-advanced-filters_</artifactId>
-			<version>0.21.6</version>
+			<artifactId>clij2_</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>net.haesleinhuepf</groupId>
+			<artifactId>clijx_</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>net.clearcontrol</groupId>
 			<artifactId>clij-clearcl</artifactId>
-			<version>0.10.4</version>
 		</dependency>
 		<dependency>
 			<groupId>net.clearcontrol</groupId>
 			<artifactId>clij-coremem</artifactId>
-			<version>0.6.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.haesleinhuepf</groupId>
 			<artifactId>clij-core</artifactId>
-			<version>1.4.5</version>
 		</dependency>
 		<dependency>
 			<groupId>de.mpicbg.rhaase</groupId>
@@ -132,12 +132,9 @@
 		</dependency>
 
 		<dependency>
-			<groupId>nz.ac.waikato.cms.weka</groupId>
-			<artifactId>weka-dev</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>sc.fiji</groupId>
-			<artifactId>Trainable_Segmentation</artifactId>
+			<artifactId>Trainable_Segmentation_clijed</artifactId>
+			<version>3.2.35-clijed</version>
 		</dependency>
 	</dependencies>
 
