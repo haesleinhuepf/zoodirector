@@ -6,10 +6,14 @@ import ij.gui.GenericDialog;
 import ij.measure.ResultsTable;
 import ij.plugin.HyperStackConverter;
 import ij.text.TextWindow;
+import jdk.nashorn.internal.codegen.Compiler;
 import net.haesleinhuepf.explorer.tree.manipulators.AbstractManipulator;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
+import net.haesleinhuepf.imagej.zoo.data.classification.Phase;
 import net.haesleinhuepf.imagej.zoo.measurement.ImageQualityMeasurements;
+import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
 import net.haesleinhuepf.imagej.zoo.measurement.MeshMeasurements;
+import net.haesleinhuepf.imagej.zoo.visualisation.ClearControlInteractivePlot;
 
 import javax.swing.*;
 import java.awt.*;
@@ -102,7 +106,7 @@ public class DataSetHandler extends AbstractManipulator {
 
         {
             int formLine = newFormLine();
-            JLabel lblC = new JLabel("Annotations");
+            JLabel lblC = new JLabel("Annotate events");
             add(lblC, "2, " + formLine);
 
             JButton btnColor = new JButton("Add");
@@ -128,11 +132,101 @@ public class DataSetHandler extends AbstractManipulator {
             });
             add(btnShow, "4, " + formLine);
         }
+        {
+            int formLine = newFormLine();
+            JLabel lblC = new JLabel("Annotate phases");
+            add(lblC, "2, " + formLine);
+
+            JButton btnColor = new JButton("Add");
+            btnColor.setSize(50, 10);
+            btnColor.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    addPhaseAnnotation(dataSet);
+                }
+            });
+            add(btnColor, "4, " + formLine);
+
+
+            JButton btnShow = new JButton("Show");
+            btnShow.setSize(50, 10);
+            btnShow.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    showPhaseAnnotations(dataSet);
+                }
+
+            });
+            add(btnShow, "4, " + formLine);
+        }
+
     }
+
+    private void addPhaseAnnotation(ClearControlDataSet dataSet) {
+        int frameStart = dataSet.getFrameRangeStart();
+        int frameEnd = dataSet.getFrameRangeEnd();
+        Plotter.startTime = dataSet.getTimesInMinutes()[frameStart];
+        Plotter.endTime = dataSet.getTimesInMinutes()[frameEnd];
+        Plotter.timeUnit = "Minutes";
+
+
+        GenericDialog gd = new GenericDialog("Add phase annotation");
+        gd.addNumericField("Start", Plotter.startTime, 2);
+        gd.addNumericField("End", Plotter.endTime, 2);
+        gd.addChoice("Time unit for x-axis", new String[]{"Seconds", "Minutes", "Hours"}, Plotter.timeUnit);
+
+        String[] names = new String[Phase.all.length];
+        int i = 0;
+        for (Phase phase : Phase.all) {
+            names[i] = phase.toString();
+            i++;
+        }
+        gd.addChoice("Phase", names, names[0]);
+        gd.showDialog();
+        if (gd.wasCanceled()) {
+            return;
+        }
+
+        Plotter.startTime = gd.getNextNumber();
+        Plotter.endTime = gd.getNextNumber();
+        Plotter.timeUnit = gd.getNextChoice();
+
+        double startTimeInMinutes = Plotter.startTime;
+        double endTimeInMinutes = Plotter.endTime;
+        if (Plotter.timeUnit == "Seconds") {
+            startTimeInMinutes = Plotter.startTime / 60;
+            endTimeInMinutes = Plotter.endTime / 60;
+        }
+        if (Plotter.timeUnit == "Hours") {
+            startTimeInMinutes = Plotter.startTime * 60;
+            endTimeInMinutes = Plotter.endTime * 60;
+        }
+
+        int firstFrame = dataSet.getFirstFrameAfterTimeInSeconds(startTimeInMinutes * 60 );
+        int lastFrame = dataSet.getFirstFrameAfterTimeInSeconds(endTimeInMinutes * 60);
+
+        int phaseAnnotation = gd.getNextChoiceIndex();
+        Phase phase = Phase.all[phaseAnnotation];
+
+        double[] phases = dataSet.getPhases();
+        for (i = firstFrame; i <= lastFrame; i++) {
+            phases[i] = phase.value;
+        }
+        dataSet.savePhases();
+
+        //dataSet.addAnnotation(annotation);
+    }
+
+    private void showPhaseAnnotations(ClearControlDataSet dataSet) {
+        MeasurementTable phases = dataSet.getMeasurement("processed/phases.csv");
+        ClearControlInteractivePlot plot = new ClearControlInteractivePlot(dataSet, "phase_index", phases);
+        dataSet.addPlot(plot.getPlotWindow().getPlot());
+    }
+
 
     private void showAnnotations(ClearControlDataSet dataSet) {
         ResultsTable table = dataSet.getAnnotationsAsTable();
-        table.show(dataSet.getShortName() + " annotations");
+        table.show(dataSet.getShortName() + " event annotations");
 
         TextWindow window = (TextWindow)WindowManager.getWindow(dataSet.getShortName() + " annotations");
         window.getTextPanel().addMouseListener(new MouseAdapter() {
@@ -153,8 +247,8 @@ public class DataSetHandler extends AbstractManipulator {
     }
 
     private void addAnnotation(ClearControlDataSet dataSet) {
-        GenericDialog gd = new GenericDialog("Add annotation");
-        gd.addMessage("Add annotation for frame " + dataSet.getFrameRangeStart());
+        GenericDialog gd = new GenericDialog("Add event annotation");
+        gd.addMessage("Add event annotation for frame " + dataSet.getFrameRangeStart());
         gd.addStringField("Annotation", "");
         gd.showDialog();
         if (gd.wasCanceled()) {

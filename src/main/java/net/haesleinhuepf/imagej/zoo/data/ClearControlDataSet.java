@@ -43,6 +43,7 @@ public class ClearControlDataSet {
     private long[] widths;
     private long[] heights;
     private long[] depths;
+    private double[] phases;
 
     private double[] voxelDimXs;
     private double[] voxelDimYs;
@@ -86,7 +87,8 @@ public class ClearControlDataSet {
         widths = new long[index.size()];
         heights = new long[index.size()];
         depths = new long[index.size()];
-
+        phases = new double[index.size()];
+        loadPhases();
 
         voxelDimXs = new double[index.size()];
         voxelDimYs = new double[index.size()];
@@ -248,6 +250,28 @@ public class ClearControlDataSet {
     public double[] getFrameDelayInSeconds() {
         return frameDelayInSeconds;
     }
+    public double[] getPhases() { return phases; }
+
+    public void loadPhases() {
+        if (new File(path + "processed/phases.csv").exists()) {
+            this.phases = getMeasurement("processed/phases.csv").getColumn("phase_index");
+        }
+    }
+
+    public void savePhases() {
+        ResultsTable table = getPhaseTable();
+        table.save(path + "processed/phases.csv");
+    }
+
+    public ResultsTable getPhaseTable() {
+        ResultsTable table = new ResultsTable();
+        for (int i = 0; i < phases.length; i++) {
+            table.incrementCounter();
+            table.setValue("Frame", table.size() - 1, i);
+            table.setValue("phase_index", table.size() - 1,  phases[i]);
+        }
+        return table;
+    }
 
     public double[] getFramesPerMinute() {
         return framesPerMinute;
@@ -384,6 +408,7 @@ public class ClearControlDataSet {
     public ResultsTable getAnnotationsAsTable() {
         return annotatedFrames.getTable();
     }
+
 
     private class CCImpListener implements ImageListener {
         boolean acting = false;
