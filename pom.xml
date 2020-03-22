@@ -8,14 +8,14 @@
 	<parent>
 		<groupId>net.haesleinhuepf</groupId>
 		<artifactId>clij-parent-pom</artifactId>
-		<version>1.5.0</version>
+		<version>1.5.4</version>
 		<relativePath />
 	</parent>
 
 	<groupId>net.haesleinhuepf</groupId>
 	<!-- note: the artifactId must contain an underscore _ to make ImageJ handle it correctly.-->
 	<artifactId>zoodirector_</artifactId>
-	<version>0.7.1</version>
+	<version>0.7.3</version>
 
 	<name>zoodirector</name>
 	<description>zoodirector</description>
@@ -134,7 +134,7 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>Trainable_Segmentation_clijed</artifactId>
-			<version>3.2.35-clijed</version>
+            <version>3.2.37-clijed</version>
 		</dependency>
 	</dependencies>
 
