@@ -103,7 +103,7 @@ public class DataSetHandler extends AbstractManipulator {
             add(btnAnalyseWithGaps, "4, " + formLine);
 
         }
-
+/*
         {
             int formLine = newFormLine();
             JLabel lblC = new JLabel("Annotate events");
@@ -132,6 +132,7 @@ public class DataSetHandler extends AbstractManipulator {
             });
             add(btnShow, "4, " + formLine);
         }
+
         {
             int formLine = newFormLine();
             JLabel lblC = new JLabel("Annotate phases");
@@ -159,7 +160,7 @@ public class DataSetHandler extends AbstractManipulator {
             });
             add(btnShow, "4, " + formLine);
         }
-
+*/
     }
 
     private void addPhaseAnnotation(ClearControlDataSet dataSet) {
