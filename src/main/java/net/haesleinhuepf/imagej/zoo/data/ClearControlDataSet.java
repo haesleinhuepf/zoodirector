@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -170,6 +171,7 @@ public class ClearControlDataSet {
                 System.out.println("Raw data couldn't be opened: " + path + "stacks/" + dataset + "/");
             }
         }
+        imageDatasetMap.put(data, this);
         return data;
     }
 
@@ -231,10 +233,21 @@ public class ClearControlDataSet {
         return imageFolderArray;
     }
 
+
+    static HashMap<ImagePlus, ClearControlDataSet> imageDatasetMap = new HashMap<>();
+
     ArrayList<ImagePlus> registeredThumbnails = new ArrayList<>();
     public ImagePlus getThumbnailsFromFolder(String foldername) {
+        return getThumbnailsFromFolder(foldername, true);
+    }
+
+    public ImagePlus getThumbnailsFromFolder(String foldername, boolean register) {
         ImagePlus thumbnails = ZooUtilities.openFolderStack(path + foldername);
-        registeredThumbnails.add(thumbnails);
+        imageDatasetMap.put(thumbnails, this);
+
+        if (register && !registeredThumbnails.contains(thumbnails)) {
+            registeredThumbnails.add(thumbnails);
+        }
         return thumbnails;
     }
 
@@ -445,6 +458,7 @@ public class ClearControlDataSet {
     private ArrayList<Plot> plots = new ArrayList<>();
     public void addPlot(Plot plot) {
         plots.add(plot);
+        imageDatasetMap.put(plot.getImagePlus(), this);
     }
     public void removePlot(Plot plot) {
         plots.remove(plot);
@@ -522,5 +536,9 @@ public class ClearControlDataSet {
 
     public void addAnnotation(String annotation) {
         annotatedFrames.putAnnotation(currentFrameRangeStart, annotation);
+    }
+
+    public static ClearControlDataSet getDataSetOfImagePlus(ImagePlus imp) {
+        return imageDatasetMap.get(imp);
     }
 }
