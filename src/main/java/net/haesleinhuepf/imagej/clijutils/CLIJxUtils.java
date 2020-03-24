@@ -16,6 +16,52 @@ public class CLIJxUtils {
         ClearCLBuffer distanceVector = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
         clijx.averageAngleBetweenAdjacentTriangles(pointlist, touch_matrix, distanceVector);
         return distanceVector;
+
+        /*
+                ClearCLBuffer touch_matrix2 = fillTouchMatrixCompletely(touch_matrix);
+
+        clijx.show(touch_matrix, "full_matrix");
+
+
+        ClearCLBuffer matrix2 = clijx.create(touch_matrix2);
+        ClearCLBuffer matrix3 = clijx.create(touch_matrix2);
+
+        clijx.multiplyMatrix(touch_matrix2, touch_matrix2, matrix2);
+
+        clijx.show(matrix2, "matrix2");
+
+        clijx.multiplyMatrix(matrix2, touch_matrix2, matrix3);
+        //clijx.show(matrix3, "matrix3");
+
+        clijx.show(matrix3, "cubed");
+
+
+        clijx.setWhereXgreaterThanY(matrix3, 0);
+        clijx.setWhereXsmallerThanY(matrix3, 0);
+
+        clijx.show(matrix3, "diagonale");
+
+        clijx.multiplyImageAndScalar(matrix3, matrix2, 1.0 / 6.0);
+
+        ClearCLBuffer distanceVector = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
+        clijx.maximumYProjection(matrix2, distanceVector);
+        //clijx.averageAngleBetweenAdjacentTriangles(pointlist, touch_matrix, distanceVector);
+
+        clijx.show(distanceVector, "dist v");
+
+        new WaitForUserDialog("ha").show();
+
+
+        clijx.release(matrix2);
+        clijx.release(matrix3);
+        //clijx.release(touch_matrix2);
+
+        clijx.setWhereXequalsY(touch_matrix, 0);
+        clijx.setWhereXgreaterThanY(touch_matrix, 0);
+
+        return distanceVector;
+
+        */
     }
 
     public static ClearCLBuffer distanceMatrixToMesh(ClearCLBuffer inputImage, ClearCLBuffer pointlist, ClearCLBuffer distance_matrix) {
