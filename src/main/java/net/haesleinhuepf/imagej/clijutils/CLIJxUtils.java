@@ -12,6 +12,12 @@ public class CLIJxUtils {
         return distanceVector;
     }
 
+    public static ClearCLBuffer measureAverageDistanceOfNClosestNeighbors(ClearCLBuffer distance_matrix, int n) {
+        ClearCLBuffer distanceVector = clijx.create(new long[]{distance_matrix.getWidth(), 1, 1}, clijx.Float);
+        clijx.averageDistanceOfNClosestPoints(distance_matrix, distanceVector, n);
+        return distanceVector;
+    }
+
     public static ClearCLBuffer measureAverageSurfaceAngle(ClearCLBuffer pointlist, ClearCLBuffer touch_matrix) {
         ClearCLBuffer distanceVector = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
         clijx.averageAngleBetweenAdjacentTriangles(pointlist, touch_matrix, distanceVector);
