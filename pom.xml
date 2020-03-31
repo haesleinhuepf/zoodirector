@@ -8,14 +8,14 @@
 	<parent>
 		<groupId>net.haesleinhuepf</groupId>
 		<artifactId>clij-parent-pom</artifactId>
-		<version>1.5.4</version>
+		<version>1.5.8</version>
 		<relativePath />
 	</parent>
 
 	<groupId>net.haesleinhuepf</groupId>
 	<!-- note: the artifactId must contain an underscore _ to make ImageJ handle it correctly.-->
 	<artifactId>zoodirector_</artifactId>
-	<version>0.7.3</version>
+	<version>0.7.6</version>
 
 	<name>zoodirector</name>
 	<description>zoodirector</description>
@@ -130,11 +130,15 @@
 			<artifactId>imagequalitymetrics-microscopeautopilot</artifactId>
 			<version>0.2.0</version>
 		</dependency>
-
 		<dependency>
-			<groupId>sc.fiji</groupId>
-			<artifactId>Trainable_Segmentation_clijed</artifactId>
-            <version>3.2.37-clijed</version>
+			<groupId>net.imglib2</groupId>
+			<artifactId>imglib2</artifactId>
+			<version>5.8.0</version>
+		</dependency>
+		<dependency>
+			<groupId>net.haesleinhuepf</groupId>
+			<artifactId>clijx-weka_</artifactId>
+			<version>0.26.5</version>
 		</dependency>
 	</dependencies>
 

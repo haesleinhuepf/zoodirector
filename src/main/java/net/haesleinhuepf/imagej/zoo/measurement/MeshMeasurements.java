@@ -11,6 +11,8 @@ import ij.process.ImageProcessor;
 import net.haesleinhuepf.clij.clearcl.ClearCL;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.clearcl.ClearCLImage;
+import net.haesleinhuepf.clij2.converters.helptypes.Float1;
+import net.haesleinhuepf.clij2.plugins.StatisticsOfLabelledPixels;
 import net.haesleinhuepf.clijx.CLIJx;
 import net.haesleinhuepf.clijx.utilities.CLIJUtilities;
 import net.haesleinhuepf.imagej.clijutils.CLIJxUtils;
@@ -22,6 +24,7 @@ import org.scijava.util.VersionUtils;
 
 import java.awt.*;
 import java.io.IOException;
+import java.nio.FloatBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
@@ -84,6 +87,8 @@ public class MeshMeasurements extends DataSetMeasurements {
     private boolean eliminateOnSurfaceCells = false;
     private boolean drawText = false;
 
+    private boolean storeMeasurements = false;
+
     public MeshMeasurements setCut(
             double gapX,
             double gapY,
@@ -119,6 +124,79 @@ public class MeshMeasurements extends DataSetMeasurements {
     public MeshMeasurements setZoomFactor(double zoomFactor) {
         this.zoomFactor = zoomFactor;
         return this;
+    }
+
+    public MeshMeasurements setStoreMeasurements(boolean storeMeasurements) {
+        this.storeMeasurements = storeMeasurements;
+        return this;
+    }
+    HashMap<String, float[]> measurements = new HashMap<>();
+    public float[] getMeasurement(String key) {
+        return measurements.get(key);
+    }
+
+    private void storeMeasurement(String key, ClearCLBuffer measurement) {
+        if (!storeMeasurements) {
+            return;
+        }
+        if (measurements.containsKey(key)) {
+            measurements.remove(key);
+        }
+        float[] array = new float[(int) measurement.getWidth()];
+        FloatBuffer buffer = FloatBuffer.wrap(array);
+
+        measurement.writeTo(buffer, true);
+
+        measurements.put(key, array);
+    }
+
+    private void storeMeasurement(String key, double[]measurement) {
+        if (!storeMeasurements) {
+            return;
+        }
+        if (measurements.containsKey(key)) {
+            measurements.remove(key);
+        }
+        float[] array = new float[measurement.length];
+        for (int i = 0; i < array.length; i++) {
+            array[i] = (float) measurement[i];
+        }
+
+        measurements.put(key, array);
+    }
+
+    private void storeMeasurement(String key, float[] measurement) {
+        if (!storeMeasurements) {
+            return;
+        }
+        if (measurements.containsKey(key)) {
+            measurements.remove(key);
+        }
+        measurements.put(key, measurement);
+    }
+
+    public ResultsTable getAllMeasurements() {
+        ArrayList<String> keys = new ArrayList<>();
+        keys.addAll(measurements.keySet());
+        Collections.sort(keys);
+
+        ResultsTable table = new ResultsTable();
+        if (measurements.size() == 0) {
+            return table;
+        }
+
+        float[] anyMeasuremnt = measurements.get(0);
+        for (int i = 0; i < anyMeasuremnt.length; i++) {
+            table.incrementCounter();
+        }
+
+        for (String key : keys) {
+            float[] measuremnt = measurements.get(key);
+            for (int i = 0; i < anyMeasuremnt.length; i++) {
+                table.setValue(key, i, measuremnt[i]);
+            }
+        }
+        return table;
     }
 
     public MeshMeasurements setNumberDoubleDilationsForPseudoCellSegmentation(int numberDoubleDilationsForPseudoCellSegmentation) {
@@ -344,7 +422,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         System.out.println("PushedImage: " + pushedImage);
 
-        clijx.resample(pushedImage, resampledImage, factorX, factorY, factorZ, true);
+        clijx.resample(pushedImage, resampledImage, 1.0 / factorX, 1.0 / factorY, 1.0 / factorZ, true);
 
 
         clijx.stopWatch("resample");
@@ -355,9 +433,11 @@ public class MeshMeasurements extends DataSetMeasurements {
         } else {
             clijx.copy(resampledImage, backgroundSubtractedImage);
         }
+        //clijx.show(pushedImage, "Pus");
         //clijx.show(resampledImage, "Res");
         //clijx.show(backgroundSubtractedImage, "Bac");
         clijx.release(resampledImage);
+
 
         clijx.stopWatch("background subtraction");
 
@@ -381,7 +461,8 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         clijx.stopWatch("affine transform");
 
-        // clijx.show(inputImage, "inputImage");
+        //clijx.show(inputImage, "inputImage");
+        //new WaitForUserDialog("hhhh").show();
         //if (single_stack_visualisation) {
         //    ImagePlus imp_inputImage = clijx.pull(inputImage);
         //}
@@ -469,6 +550,31 @@ public class MeshMeasurements extends DataSetMeasurements {
             clijx.release(temp);
         }
 
+        if (storeMeasurements) {
+
+            ResultsTable table = new ResultsTable();
+            clijx.statisticsOfLabelledPixels(inputImage, segmented_cells, table);
+
+            String[] columnsToKeep = new String[]{
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_INTENSITY.toString(),
+
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.STANDARD_DEVIATION_INTENSITY.toString(),
+
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_WIDTH.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_HEIGHT.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_DEPTH.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_X.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Y.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Z.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.PIXEL_COUNT.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MINIMUM_INTENSITY.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAXIMUM_INTENSITY.toString()
+            };
+            for (String key : columnsToKeep) {
+                storeMeasurement(key, table.getColumn(table.getColumnIndex(key)));
+            }
+
+        }
 
         //ClearCLBuffer max_membranes = null;
         //ClearCLBuffer mean_membranes = null;
@@ -551,6 +657,7 @@ public class MeshMeasurements extends DataSetMeasurements {
         //ClearCLBuffer nonzero_min_avg_surf_ang = null;
         {
             ClearCLBuffer average_surface_angle = generateParametricImage(surface_angle_vector, segmented_cells);
+            storeMeasurement("surface_angle", surface_angle_vector);
             if (projection_visualisation_on_screen || projection_visualisation_to_disc) {
                 resultImages.put("22_max_avg_surf_ang", max_z_projection(average_surface_angle));
                 resultImages.put("23_mean_avg_surf_ang", mean_projection(average_surface_angle));
@@ -564,6 +671,7 @@ public class MeshMeasurements extends DataSetMeasurements {
         //ClearCLBuffer nonzero_min_neigh_touch = null;
         {
             ClearCLBuffer neighbor_count = generateParametricImage(neighbor_count_vector, segmented_cells);
+            storeMeasurement("neighbor_count", neighbor_count_vector);
             if (projection_visualisation_on_screen || projection_visualisation_to_disc) {
                 resultImages.put("19_max_neigh_touch", max_z_projection(neighbor_count));
                 resultImages.put("20_mean_neigh_touch", mean_projection(neighbor_count));
@@ -595,6 +703,7 @@ public class MeshMeasurements extends DataSetMeasurements {
         clijx.stopWatch("mesh");
 
         ClearCLBuffer average_distance_of_touching_neighbors = generateParametricImage(distance_vector, segmented_cells);
+        storeMeasurement("average_distance", average_distance_of_touching_neighbors);
 
         double meanDistance2 = clijx.meanOfMaskedPixels(average_distance_of_touching_neighbors, detected_spots);
         double varianceDistance2 = clijx.varianceOfMaskedPixels(average_distance_of_touching_neighbors, detected_spots, meanDistance);
@@ -1063,29 +1172,28 @@ public class MeshMeasurements extends DataSetMeasurements {
 
     public static void main(String ... arg) {
 
-        if (false)
+        if (true)
         {
             new ImageJ();
 
-            String sourceFolder = "C:/structure/data/2018-05-23-16-18-13-89-Florence_multisample/";
+            //String sourceFolder = "C:/structure/data/2018-05-23-16-18-13-89-Florence_multisample/";
+            String sourceFolder = "C:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/";
             //String sourceFolder = "C:/structure/data/2019-10-28-17-22-59-23-Finsterwalde_Tribolium_nGFP/";
-            String datasetFolder = "opticsprefused";
+            //String datasetFolder = "opticsprefused";
+            String datasetFolder = "C0opticsprefused";
 
             ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
 
-            int startFrame = 300;
-            int endFrame = startFrame + 300;
+            int startFrame = 1000;
+            int endFrame = startFrame;
 
             new MeshMeasurements(dataSet).
-                    setCLIJx(CLIJx.getInstance("2070")).
-                    setBackgroundSubtractionSigma(15).
-                    setProjectionVisualisationToDisc(true).
+                    //setCLIJx(CLIJx.getInstance("2070")).
+                    setProjectionVisualisationToDisc(false).
                     setProjectionVisualisationOnScreen(true).
-                    setNumberDoubleDilationsForPseudoCellSegmentation(14).
-                    setNumberDoubleErosionsForPseudoCellSegmentation(4).
                     setExportMesh(false).
-                    setThreshold(75).
-                    setEliminateOnSurfaceCells(true).
+                    setThreshold(300).
+                    //setEliminateOnSurfaceCells(true).
                     //setBlurSigma(1).
                     //setEliminateSubSurfaceCells(true).
                     /*setCut(
@@ -1107,7 +1215,7 @@ public class MeshMeasurements extends DataSetMeasurements {
                             run();
         }
 
-        //if (false)
+        if (false)
         {
             new ImageJ();
 

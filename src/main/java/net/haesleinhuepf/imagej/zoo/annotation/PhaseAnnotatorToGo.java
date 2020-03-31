@@ -1,24 +1,21 @@
 package net.haesleinhuepf.imagej.zoo.annotation;
 
 import autopilot.measures.FocusMeasures;
-import ij.IJ;
-import ij.ImageJ;
-import ij.ImageListener;
-import ij.ImagePlus;
-import ij.gui.YesNoCancelDialog;
-import ij.io.OpenDialog;
+import ij.*;
+import ij.gui.*;
 import ij.measure.ResultsTable;
+import ij.plugin.Duplicator;
 import ij.plugin.filter.PlugInFilter;
 import ij.process.ImageProcessor;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clijx.CLIJx;
-import net.haesleinhuepf.clijx.weka.ApplyOCLWekaModel;
-import net.haesleinhuepf.clijx.weka.CLIJxWeka;
+import net.haesleinhuepf.clijx.weka.ApplyWekaToTable;
+import net.haesleinhuepf.clijx.weka.TrainWekaFromTable;
+import net.haesleinhuepf.clijx.weka.CLIJxWeka2;
 import net.haesleinhuepf.clijx.weka.gui.InteractivePanelPlugin;
 import net.haesleinhuepf.imagej.zoo.ZooExplorerPlugin;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
-import net.haesleinhuepf.imagej.zoo.data.classification.Phase;
 import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
 import net.haesleinhuepf.imagej.zoo.measurement.SliceAnalyser;
 
@@ -26,10 +23,13 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.nio.FloatBuffer;
 import java.util.HashMap;
 
-public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilter, ImageListener {
+public class PhaseAnnotatorToGo extends InteractivePanelPlugin implements PlugInFilter, ImageListener {
+
+    CLIJx clijx;
 
     FocusMeasures.FocusMeasure[] focusMeasures = new FocusMeasures.FocusMeasure[]{
             FocusMeasures.FocusMeasure.StatisticMax,
@@ -40,22 +40,19 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
             FocusMeasures.FocusMeasure.DifferentialTotalVariation,
             FocusMeasures.FocusMeasure.DifferentialTenengrad
     };
+    private static String[] phases = {"Phase1", "Phase2", "Phase3"};
 
     class Entry{
-        // key
-        ClearControlDataSet dataSet;
+        public ImagePlus imp;
         // meta data
-        String path;
         int frame;
         String name;
 
-        // temporary stuff
-        double[] spot_counts;
-        ImagePlus thumbnails;
+        // measurements
         ResultsTable table;
 
-        // measurements
-        int spot_count;
+        // ground truth
+        int phaseIndex = 0;
     }
 
     Entry current = null;
@@ -74,6 +71,7 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
     @Override
     public void run(ImageProcessor ip) {
 
+        clijx = CLIJx.getInstance();
         imp = IJ.getImage();
 
         setupGUI();
@@ -107,7 +105,7 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
                     }
 
                     if (table.size() > 0) {
-                        table.show("Annotations");
+                        //table.show("Annotations");
                         saveButton.setEnabled(true);
                         predictButton.setEnabled(true);
                     }
@@ -127,6 +125,41 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
             saveButton.setEnabled(false);
             guiPanel.add(saveButton);
         }
+        guiPanel.add(new Label(" "));
+
+        {
+            Button configButton = new Button("Config");
+            configButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    configureClicked();
+                }
+            });
+            guiPanel.add(configButton);
+        }
+
+        {
+            phaseChoice = new Choice();
+            for (String phase : phases) {
+                //names[i] = phase.toString();
+                phaseChoice.addItem(phase.toString());
+            }
+            guiPanel.add(phaseChoice);
+
+        }
+
+        guiPanel.add(new Label(" "));
+
+        {
+            Button annotateButton = new Button("Annotate");
+            annotateButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    annotateClicked();
+                }
+            });
+            guiPanel.add(annotateButton);
+        }
 
         {
             predictButton = new Button("Predict");
@@ -140,27 +173,7 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
             guiPanel.add(predictButton);
         }
 
-
-        {
-            phaseChoice = new Choice();
-            for (Phase phase : Phase.all) {
-                //names[i] = phase.toString();
-                phaseChoice.addItem(phase.toString());
-            }
-            guiPanel.add(phaseChoice);
-        }
-
-        {
-            Button annotateButton = new Button("Annotate");
-            annotateButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    annotateClicked();
-                }
-            });
-            guiPanel.add(annotateButton);
-        }
-
+        guiPanel.add(new Label(" "));
 
         {
             Button doneButton = new Button("Done");
@@ -174,9 +187,41 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
         }
     }
 
-    HashMap<Integer, Integer> indexToClassID;
-    HashMap<Integer, Integer> classIDTOIndex;
-    private CLIJxWeka train() {
+    private void configureClicked() {
+        GenericDialog gd = new GenericDialog("Configure phases");
+        gd.addStringField("Phases (comma separated)", String.join(", " + phases));
+        gd.showDialog();
+        if (gd.wasCanceled()) {
+            return;
+        }
+
+        phases = gd.getNextString().split(",");
+
+        phaseChoice.removeAll();
+        for (int i = 0; i < phases.length; i++) {
+            phases[i] = phases[i].trim();
+            phaseChoice.addItem(phases[i]);
+        }
+    }
+
+    public CLIJxWeka2 train() {
+        ResultsTable tableWithGroundTruth = new ResultsTable();
+        for (int i = 0; i < table.size(); i++) {
+            tableWithGroundTruth.incrementCounter();
+            tableWithGroundTruth.addValue("Phase_index", table.getValue("Phase_index", i));
+            for (FocusMeasures.FocusMeasure focusMeasure : focusMeasures) {
+                tableWithGroundTruth.addValue(focusMeasure.getLongName(), table.getValue(focusMeasure.getLongName(), i));
+            }
+        }
+
+
+        int numberOfTrees = 200;
+        int numberOfFeatures = 2;
+        int maxDepth = 3;
+        CLIJxWeka2 clijxweka2 = TrainWekaFromTable.trainWekaFromTable(clijx, tableWithGroundTruth, "Phase_index", "test.model", numberOfTrees, numberOfFeatures, maxDepth);
+
+        return clijxweka2;
+        /*
         ResultsTable sendToGPUTable = new ResultsTable();
         indexToClassID = new HashMap<>();
         classIDTOIndex = new HashMap<>();
@@ -197,8 +242,6 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
             sendToGPUTable.incrementCounter();
             sendToGPUTable.addValue("GROUND_TRUTH", current_phase_index);
 
-            sendToGPUTable.addValue("SPOT_COUT", table.getValue("Spot_count", i));
-
             for (FocusMeasures.FocusMeasure focusMeasure : focusMeasures) {
                 sendToGPUTable.addValue(focusMeasure.getLongName(), table.getValue(focusMeasure.getLongName(), i));
             }
@@ -207,7 +250,6 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
 
         //sendToGPUTable.show("Send to GPU");
 
-        CLIJx clijx = CLIJx.getInstance();
 
         ClearCLBuffer tableOnGPU = clijx.create(sendToGPUTable.getHeadings().length, sendToGPUTable.size());
 
@@ -247,24 +289,39 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
         clijx.release(tableOnGPU);
 
         return clijxweka;
+        */
+
     }
 
 
     private void predictClicked() {
-        CLIJx clijx = CLIJx.getInstance();
+        String stage = predict(train());
 
-        CLIJxWeka clijxweka = train();
+        IJ.log("Prediction: " + stage);
+    }
+
+    public String predict(CLIJxWeka2 clijxweka) {
+        ResultsTable tableWithoutGroundTruth = new ResultsTable();
+
+        tableWithoutGroundTruth.incrementCounter();
+        for (FocusMeasures.FocusMeasure focusMeasure : focusMeasures) {
+            tableWithoutGroundTruth.addValue(focusMeasure.getLongName(), current.table.getValue(focusMeasure.getLongName(), 0));
+        }
+
+        ApplyWekaToTable.applyWekaToTable(clijx, tableWithoutGroundTruth, "Phase_index", clijxweka);
+
+        return phases[(int) tableWithoutGroundTruth.getValue("Phase_index", 0)];
+        /*
 
         ResultsTable sendToGPUTable = new ResultsTable();
         sendToGPUTable.incrementCounter();
-        sendToGPUTable.addValue("SPOT_COUT", current.spot_count);
         for (FocusMeasures.FocusMeasure focusMeasure : focusMeasures) {
             sendToGPUTable.addValue(focusMeasure.getLongName(), current.table.getValue(focusMeasure.getLongName(), 0));
         }
 
         float[] values = new float[focusMeasures.length + 1];
-        values[0] = current.spot_count;
-        int i = 1;
+
+        int i = 0;
         for (FocusMeasures.FocusMeasure focusMeasure : focusMeasures) {
             values[i] = (float) current.table.getValue(focusMeasure.getLongName(), 0);
             i++;
@@ -287,17 +344,19 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
         int predictedIndex = (int) resultArray[resultArray.length - 1];
         int predictedClass = indexToClassID.get(predictedIndex + 1);
 
-        IJ.log("Prediction: " + Phase.all[predictedClass]);
 
         clijx.release(result);
         clijx.release(featureStack);
+
+        return phases[predictedClass];
+        */
     }
 
     private void doneClicked() {
         dismantle();
     }
 
-    private void annotateClicked() {
+    public void annotateClicked() {
         //System.out.println("Choice: " + phaseChoice.getSelectedItem());
         //System.out.println("Choice index: " + phaseChoice.getSelectedIndex());
 
@@ -306,12 +365,10 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
         table.addValue("Frame", current.frame);
         table.addValue("Phase_index", phaseChoice.getSelectedIndex());
         table.addValue("Phase_name", phaseChoice.getSelectedItem());
-        table.addValue("Path", current.path);
-        table.addValue("Spot_count", current.spot_count);
 
         copyTableRow(current.table, table);
-        table.show("Annotations");
-        table.save("backup.csv");
+        //table.show("Annotations");
+        //table.save("backup.csv");
 
         saveButton.setEnabled(true);
         predictButton.setEnabled(true);
@@ -336,46 +393,33 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
 
     }
 
+    boolean acting = false;
+
     @Override
     public void imageUpdated(ImagePlus imp) {
-        ClearControlDataSet dataSet = ClearControlDataSet.getDataSetOfImagePlus(imp);
-        if (dataSet != null) {
-            //IJ.log(imp.getTitle() + ": " + dataSet.getPath());
-            current = generateEntry(dataSet);
+        if (acting || this.imp != imp) {
+            return;
+
         }
+        acting = true;
+        current = generateEntry(imp);
+        acting = false;
     }
 
-    private Entry generateEntry(ClearControlDataSet dataSet) {
+    private Entry generateEntry(ImagePlus imp) {
         Entry entry = new Entry();
-        if (current != null && current.dataSet == dataSet) {
+        if (current != null && current.imp == imp) {
             entry = current;
         }
 
-        entry.dataSet = dataSet;
-        entry.name = dataSet.getShortName();
-        entry.path = dataSet.getPath();
-        entry.frame = dataSet.getFrameRangeStart();
+        entry.name = imp.getTitle();
+        entry.frame = imp.getFrame() - 1;
 
-        if (entry.spot_counts == null)
-        {
-            MeasurementTable measurement = dataSet.getMeasurement("spotcount.tsv");
-            if (measurement != null) {
-                entry.spot_counts = measurement.getColumn("Number of spots");
-            } else {
-                IJ.log("No spotcount.tsv found.");
-            }
+        if (entry.imp == null) {
+            entry.imp = imp;
         }
-        if (entry.spot_counts != null) {
-            entry.spot_count = (int) entry.spot_counts[entry.frame];
-        }
-
-        if (entry.thumbnails == null) {
-            entry.thumbnails = dataSet.getThumbnailsFromFolder("stacks/thumbnails_sb_text", false);
-        }
-        if (entry.thumbnails != null) {
-            CLIJx clijx = CLIJx.getInstance();
-            entry.thumbnails.setT(entry.frame + 1);
-            ClearCLBuffer buffer = clijx.pushCurrentSlice(entry.thumbnails);
+        if (entry.imp != null) {
+            ClearCLBuffer buffer = clijx.push(new Duplicator().run(imp, 1,1, 1, 1, imp.getFrame(), imp.getFrame()));
 
             //ImagePlus imp = clijx.pull(buffer);
 
@@ -389,17 +433,21 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
         return entry;
     }
 
-    public static void main(String[] args) {
-        new ImageJ();
-        ZooExplorerPlugin.open("C:/structure/data/");
+    public static PhaseAnnotatorToGo special(String[] phases) {
+        PhaseAnnotatorToGo.phases = phases;
+
+        PhaseAnnotatorToGo pa = new PhaseAnnotatorToGo();
+        pa.run(null);
 
 
-        String sourceFolder = "C:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/";
-        String datasetFolder = "C0opticsprefused";
-        ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
+        return pa;
+    }
 
-        dataSet.getThumbnailsFromFolder("stacks/thumbnails_sb_text").show();
+    public ResultsTable getTable() {
+        return table;
+    }
 
-        new PhaseAnnotator().run(null);
+    public void select(int index) {
+        phaseChoice.select(index);
     }
 }
