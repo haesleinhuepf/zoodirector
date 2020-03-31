@@ -12,8 +12,8 @@ import ij.plugin.filter.PlugInFilter;
 import ij.process.ImageProcessor;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clijx.CLIJx;
-import net.haesleinhuepf.clijx.weka.ApplyOCLWekaModel;
-import net.haesleinhuepf.clijx.weka.CLIJxWeka;
+import net.haesleinhuepf.clijx.weka.ApplyWekaModel;
+import net.haesleinhuepf.clijx.weka.CLIJxWeka2;
 import net.haesleinhuepf.clijx.weka.gui.InteractivePanelPlugin;
 import net.haesleinhuepf.imagej.zoo.ZooExplorerPlugin;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
@@ -176,7 +176,7 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
 
     HashMap<Integer, Integer> indexToClassID;
     HashMap<Integer, Integer> classIDTOIndex;
-    private CLIJxWeka train() {
+    private CLIJxWeka2 train() {
         ResultsTable sendToGPUTable = new ResultsTable();
         indexToClassID = new HashMap<>();
         classIDTOIndex = new HashMap<>();
@@ -235,7 +235,7 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
         //System.out.println("Ground truth:");
         //clijx.print(ground_truth);
 
-        CLIJxWeka clijxweka = new CLIJxWeka(clijx, featureStack, ground_truth);
+        CLIJxWeka2 clijxweka = new CLIJxWeka2(clijx, featureStack, ground_truth);
 
         clijxweka.getClassifier();
 
@@ -253,7 +253,7 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
     private void predictClicked() {
         CLIJx clijx = CLIJx.getInstance();
 
-        CLIJxWeka clijxweka = train();
+        CLIJxWeka2 clijxweka = train();
 
         ResultsTable sendToGPUTable = new ResultsTable();
         sendToGPUTable.incrementCounter();
@@ -277,7 +277,8 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
 
         ClearCLBuffer result = clijx.create(1, 1);
 
-        ApplyOCLWekaModel.applyOCL(clijx, featureStack, result, clijxweka.getOCL());
+        ApplyWekaModel.applyWekaModel(clijx, featureStack, result, clijxweka);
+        //ApplyOCLWekaModel.applyOCL(clijx, featureStack, result, clijxweka.getOCL());
 
         float[] resultArray = new float[(int) result.getWidth()];
         FloatBuffer buffer = FloatBuffer.wrap(resultArray);
@@ -285,7 +286,7 @@ public class PhaseAnnotator extends InteractivePanelPlugin implements PlugInFilt
         result.writeTo(buffer, true);
 
         int predictedIndex = (int) resultArray[resultArray.length - 1];
-        int predictedClass = indexToClassID.get(predictedIndex + 1);
+        int predictedClass = indexToClassID.get(predictedIndex);
 
         IJ.log("Prediction: " + Phase.all[predictedClass]);
 
