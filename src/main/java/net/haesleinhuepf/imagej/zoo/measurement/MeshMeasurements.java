@@ -89,6 +89,8 @@ public class MeshMeasurements extends DataSetMeasurements {
 
     private boolean storeMeasurements = false;
 
+    private boolean measure_distances_in_detail = false;
+
     public MeshMeasurements setCut(
             double gapX,
             double gapY,
@@ -280,6 +282,11 @@ public class MeshMeasurements extends DataSetMeasurements {
     }
     public MeshMeasurements setEliminateOnSurfaceCells(boolean eliminateOnSurfaceCells) {
         this.eliminateOnSurfaceCells = eliminateOnSurfaceCells;
+        return this;
+    }
+
+    public MeshMeasurements setMeasureDistancesInDetail(boolean measure_distances_in_detail) {
+        this.measure_distances_in_detail = measure_distances_in_detail;
         return this;
     }
 
@@ -720,6 +727,21 @@ public class MeshMeasurements extends DataSetMeasurements {
         }
         clijx.release(average_distance_of_touching_neighbors);
 
+        if (measure_distances_in_detail) {
+            int[] ns = new int[]{1, 2, 4, 6, 10, 20};
+            clijx.setRow(distance_matrix, 0, Float.MAX_VALUE);
+            clijx.setColumn(distance_matrix, 0, Float.MAX_VALUE);
+            clijx.setWhereXequalsY(distance_matrix, Float.MAX_VALUE);
+            clijx.show(distance_matrix, "mod_dist");
+            for (int n : ns) {
+                ClearCLBuffer averageDistanceOfNclosestNeighbors_vector = measureAverageDistanceOfNClosestNeighbors(distance_matrix, n);
+                ClearCLBuffer averageDistanceOfNclosestNeighbors_map = generateParametricImage(averageDistanceOfNclosestNeighbors_vector, segmented_cells);
+                //averageDistanceOf1closestNeighbors
+                resultImages.put("99_averageDistanceOf_" + n + "_closestNeighbors", nonzero_min_projection(averageDistanceOfNclosestNeighbors_map));
+                clijx.release(averageDistanceOfNclosestNeighbors_map);
+                clijx.release(averageDistanceOfNclosestNeighbors_vector);
+            }
+        }
 
 
 
