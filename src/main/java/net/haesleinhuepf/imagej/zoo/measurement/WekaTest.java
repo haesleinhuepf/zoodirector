@@ -7,7 +7,7 @@ import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 import net.haesleinhuepf.clij2.converters.helptypes.Double1;
 import net.haesleinhuepf.clij2.converters.helptypes.Double3;
 import net.haesleinhuepf.clijx.CLIJx;
-import net.haesleinhuepf.clijx.weka.CLIJxWeka;
+import net.haesleinhuepf.clijx.weka.CLIJxWeka2;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
 import weka.core.Attribute;
@@ -49,7 +49,7 @@ public class WekaTest {
 
 
 
-        CLIJxWeka cw = new CLIJxWeka(clijx, featureStack, clTruth);
+        CLIJxWeka2 cw = new CLIJxWeka2(clijx, featureStack, clTruth);
         System.out.println("" + cw.getClassifier());
     }
 
