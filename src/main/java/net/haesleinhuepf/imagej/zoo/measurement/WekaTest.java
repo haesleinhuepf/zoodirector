@@ -10,7 +10,6 @@ import net.haesleinhuepf.clijx.CLIJx;
 import net.haesleinhuepf.clijx.weka.CLIJxWeka2;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
-import weka.core.Attribute;
 
 import java.nio.FloatBuffer;
 
