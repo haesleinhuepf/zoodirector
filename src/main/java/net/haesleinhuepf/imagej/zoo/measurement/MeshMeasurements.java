@@ -187,15 +187,15 @@ public class MeshMeasurements extends DataSetMeasurements {
             return table;
         }
 
-        float[] anyMeasuremnt = measurements.get(0);
-        for (int i = 0; i < anyMeasuremnt.length; i++) {
-            table.incrementCounter();
-        }
+        //float[] anyMeasuremnt = measurements.get(measurements.keySet().iterator());
+        //for (int i = 0; i < anyMeasuremnt.length; i++) {
+        //    table.incrementCounter();
+        //}
 
         for (String key : keys) {
-            float[] measuremnt = measurements.get(key);
-            for (int i = 0; i < anyMeasuremnt.length; i++) {
-                table.setValue(key, i, measuremnt[i]);
+            float[] measurement = measurements.get(key);
+            for (int i = 0; i < measurement.length; i++) {
+                table.setValue(key, i, measurement[i]);
             }
         }
         return table;
@@ -290,7 +290,6 @@ public class MeshMeasurements extends DataSetMeasurements {
         return this;
     }
 
-
     @Override
     public void run() {
 
@@ -349,7 +348,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
             processFrame(outputFolder, meshMeasurementTable, f);
 
-            clijx.reportMemory();
+            //clijx.reportMemory();
         }
     }
 
@@ -561,26 +560,27 @@ public class MeshMeasurements extends DataSetMeasurements {
 
             ResultsTable table = new ResultsTable();
             clijx.statisticsOfLabelledPixels(inputImage, segmented_cells, table);
+            if (table.size() > 0) {
 
-            String[] columnsToKeep = new String[]{
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_INTENSITY.toString(),
+                String[] columnsToKeep = new String[]{
+                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_INTENSITY.toString(),
 
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.STANDARD_DEVIATION_INTENSITY.toString(),
+                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.STANDARD_DEVIATION_INTENSITY.toString(),
 
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_WIDTH.toString(),
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_HEIGHT.toString(),
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_DEPTH.toString(),
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_X.toString(),
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Y.toString(),
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Z.toString(),
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.PIXEL_COUNT.toString(),
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MINIMUM_INTENSITY.toString(),
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAXIMUM_INTENSITY.toString()
-            };
-            for (String key : columnsToKeep) {
-                storeMeasurement(key, table.getColumn(table.getColumnIndex(key)));
+                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_WIDTH.toString(),
+                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_HEIGHT.toString(),
+                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_DEPTH.toString(),
+                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_X.toString(),
+                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Y.toString(),
+                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Z.toString(),
+                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.PIXEL_COUNT.toString(),
+                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MINIMUM_INTENSITY.toString(),
+                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAXIMUM_INTENSITY.toString()
+                };
+                for (String key : columnsToKeep) {
+                    storeMeasurement(key, table.getColumn(table.getColumnIndex(key)));
+                }
             }
-
         }
 
         //ClearCLBuffer max_membranes = null;
@@ -650,12 +650,11 @@ public class MeshMeasurements extends DataSetMeasurements {
         //clijx.copy(touch_matrix_squared, touch_matrix);
         // ------------------------------------------------------------------
 
-
         clijx.stopWatch("");
         ClearCLBuffer distance_vector = measureAverageDistanceOfTouchingNeighbors(touch_matrix, distance_matrix);
         clijx.stopWatch("average distance");
-        ClearCLBuffer surface_angle_vector = measureAverageSurfaceAngle(pointlist, touch_matrix);
-        clijx.stopWatch("average angle");
+        //ClearCLBuffer surface_angle_vector = measureAverageSurfaceAngle(pointlist, touch_matrix);
+        //clijx.stopWatch("average angle");
         ClearCLBuffer neighbor_count_vector = countNeighbors(touch_matrix);
         //
 
@@ -663,14 +662,14 @@ public class MeshMeasurements extends DataSetMeasurements {
         //ClearCLBuffer mean_avg_surf_ang = null;
         //ClearCLBuffer nonzero_min_avg_surf_ang = null;
         {
-            ClearCLBuffer average_surface_angle = generateParametricImage(surface_angle_vector, segmented_cells);
-            storeMeasurement("surface_angle", surface_angle_vector);
-            if (projection_visualisation_on_screen || projection_visualisation_to_disc) {
-                resultImages.put("22_max_avg_surf_ang", max_z_projection(average_surface_angle));
-                resultImages.put("23_mean_avg_surf_ang", mean_projection(average_surface_angle));
-                resultImages.put("24_nonzero_min_avg_surf_ang", nonzero_min_projection(average_surface_angle));
-            }
-            clijx.release(average_surface_angle);
+            //ClearCLBuffer average_surface_angle = generateParametricImage(surface_angle_vector, segmented_cells);
+            //storeMeasurement("surface_angle", surface_angle_vector);
+//            if (projection_visualisation_on_screen || projection_visualisation_to_disc) {
+//                resultImages.put("22_max_avg_surf_ang", max_z_projection(average_surface_angle));
+//                resultImages.put("23_mean_avg_surf_ang", mean_projection(average_surface_angle));
+//                resultImages.put("24_nonzero_min_avg_surf_ang", nonzero_min_projection(average_surface_angle));
+//            }
+//            clijx.release(average_surface_angle);
         }
 
         //ClearCLBuffer max_neigh_touch = null;
@@ -696,7 +695,7 @@ public class MeshMeasurements extends DataSetMeasurements {
         clijx.multiplyImages(distance_matrix, touch_matrix, relevantDistances);
 
         System.out.println("Dist mat " + Arrays.toString(distance_matrix.getDimensions()));
-        System.out.println(clijx.reportMemory());
+        //System.out.println(clijx.reportMemory());
         double meanDistance = clijx.meanOfPixelsAboveThreshold(relevantDistances, 0);
         double varianceDistance = clijx.varianceOfMaskedPixels(relevantDistances, touch_matrix, meanDistance);
         meshMeasurementTable.addValue("mean_neighbor_distance", meanDistance);
@@ -710,7 +709,7 @@ public class MeshMeasurements extends DataSetMeasurements {
         clijx.stopWatch("mesh");
 
         ClearCLBuffer average_distance_of_touching_neighbors = generateParametricImage(distance_vector, segmented_cells);
-        storeMeasurement("average_distance", average_distance_of_touching_neighbors);
+        storeMeasurement("average_distance", distance_vector);
 
         double meanDistance2 = clijx.meanOfMaskedPixels(average_distance_of_touching_neighbors, detected_spots);
         double varianceDistance2 = clijx.varianceOfMaskedPixels(average_distance_of_touching_neighbors, detected_spots, meanDistance);
@@ -780,6 +779,14 @@ public class MeshMeasurements extends DataSetMeasurements {
             }
         }
 
+        if (storeMeasurements) {
+            ResultsTable table = getAllMeasurements();
+            ClearCLBuffer measurementsImage = clijx.create(table.getHeadings().length, table.size());
+            clijx.resultsTableToImage2D(measurementsImage, table);
+            clijx.saveAsTIF(measurementsImage,outputFolder + "_measurements/" + filename + ".tif");
+            table.save(outputFolder + "_measurements/" + filename + ".csv");
+            measurementsImage.close();
+        }
         if (projection_visualisation_on_screen || projection_visualisation_to_disc) {
 
             // save maximum and average projections to disc
@@ -923,7 +930,7 @@ public class MeshMeasurements extends DataSetMeasurements {
         System.out.println("Whole analysis took " + (System.currentTimeMillis() - timestamp) + " ms");
         clijx.release(pushedImage);
 
-        IJ.log(clijx.reportMemory());
+        //IJ.log(clijx.reportMemory());
 
         clijx.clear();
         //break;
@@ -1013,7 +1020,9 @@ public class MeshMeasurements extends DataSetMeasurements {
         //if (backgroundBlurSigma > 0) {
         //    clijx.differenceOfGaussian(inputImage,blurred, blurSigma, blurSigma, blurSigma, backgroundBlurSigma, backgroundBlurSigma, backgroundBlurSigma);
         //} else {
+        //long time = System.currentTimeMillis();
         clijx.blur(inputImage, blurred, blurSigma, blurSigma, blurSigma);
+        //System.out.println("blur: " + (System.currentTimeMillis() - time));
         //}
         //clijx.show(blurred, "blurred");
         // ----------------------------------------------------------------------
@@ -1206,8 +1215,8 @@ public class MeshMeasurements extends DataSetMeasurements {
 
             ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
 
-            int startFrame = 1000;
-            int endFrame = startFrame;
+            int startFrame = 500;
+            //int endFrame = startFrame + 20;
 
             new MeshMeasurements(dataSet).
                     //setCLIJx(CLIJx.getInstance("2070")).
@@ -1215,6 +1224,7 @@ public class MeshMeasurements extends DataSetMeasurements {
                     setProjectionVisualisationOnScreen(true).
                     setExportMesh(false).
                     setThreshold(300).
+                    setStoreMeasurements(true).
                     //setEliminateOnSurfaceCells(true).
                     //setBlurSigma(1).
                     //setEliminateSubSurfaceCells(true).
@@ -1230,7 +1240,7 @@ public class MeshMeasurements extends DataSetMeasurements {
                             0.9
                     ).*/
                     setFirstFrame(startFrame).
-                    setLastFrame(endFrame).
+                    //setLastFrame(endFrame).
 //                setFirstFrame(startFrame).
                     //              setFrameStep(100).
                     //            setLastFrame(endFrame).
