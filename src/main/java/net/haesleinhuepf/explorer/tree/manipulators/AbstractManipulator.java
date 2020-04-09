@@ -1,8 +1,5 @@
 package net.haesleinhuepf.explorer.tree.manipulators;
 
-
-import org.bounce.FormLayout;
-
 import javax.swing.*;
 import javax.swing.event.ChangeListener;
 import java.awt.*;
