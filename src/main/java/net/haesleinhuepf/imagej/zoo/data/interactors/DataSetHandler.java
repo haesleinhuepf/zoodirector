@@ -8,6 +8,7 @@ import ij.plugin.HyperStackConverter;
 import ij.text.TextWindow;
 import jdk.nashorn.internal.codegen.Compiler;
 import net.haesleinhuepf.explorer.tree.manipulators.AbstractManipulator;
+import net.haesleinhuepf.imagej.gui.InteractiveMeshMeasurements;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.classification.Phase;
 import net.haesleinhuepf.imagej.zoo.measurement.ImageQualityMeasurements;
@@ -37,6 +38,27 @@ public class DataSetHandler extends AbstractManipulator {
         setLayout(new GridLayout(4, 3));
 
         Plotter.readPrefs();
+        {
+            int formLine = newFormLine();
+            JLabel lblC = new JLabel("SPIMcat viewer");
+            add(lblC, "2, " + formLine);
+
+            JButton btnViwer = new JButton("Open viewer...");
+            btnViwer.setSize(50, 10);
+            btnViwer.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    new InteractiveMeshMeasurements(dataSet);
+                }
+
+            });
+            add(btnViwer, "4, " + formLine);
+            add(new JLabel());
+
+        }
+
+
+
         {
             int formLine = newFormLine();
             JLabel lblC = new JLabel("Extract thumnails over time");

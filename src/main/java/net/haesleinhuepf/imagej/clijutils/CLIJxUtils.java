@@ -84,7 +84,7 @@ public class CLIJxUtils {
 
 
     public static ClearCLBuffer labelSpots(ClearCLBuffer detected_spots) {
-        ClearCLBuffer cca_result = clijx.create(detected_spots.getDimensions(), clijx.Float);
+        ClearCLBuffer cca_result = clijx.create(detected_spots.getDimensions(), clijx.UnsignedShort);
         clijx.stopWatch("");
         //clijx.connectedComponentsLabeling(detected_spots, cca_result);
         //clijx.stopWatch("CCA");

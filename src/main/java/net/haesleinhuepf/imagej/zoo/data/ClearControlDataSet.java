@@ -423,6 +423,11 @@ public class ClearControlDataSet {
     }
 
 
+    public void registerImagePlus(ImagePlus viewer) {
+        registeredThumbnails.add(viewer);
+    }
+
+
     private class CCImpListener implements ImageListener {
         boolean acting = false;
         @Override

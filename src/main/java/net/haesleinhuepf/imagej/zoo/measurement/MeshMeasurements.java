@@ -8,10 +8,17 @@ import ij.gui.WaitForUserDialog;
 import ij.measure.Calibration;
 import ij.measure.ResultsTable;
 import ij.process.ImageProcessor;
+import net.haesleinhuepf.clij.CLIJ;
 import net.haesleinhuepf.clij.clearcl.ClearCL;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.clearcl.ClearCLImage;
+import net.haesleinhuepf.clij.clearcl.ClearCLKernel;
+import net.haesleinhuepf.clij.clearcl.interfaces.ClearCLImageInterface;
+import net.haesleinhuepf.clij2.CLIJ2;
 import net.haesleinhuepf.clij2.converters.helptypes.Float1;
+import net.haesleinhuepf.clij2.plugins.Clear;
+import net.haesleinhuepf.clij2.plugins.OnlyzeroOverwriteMaximumBox;
+import net.haesleinhuepf.clij2.plugins.OnlyzeroOverwriteMaximumDiamond;
 import net.haesleinhuepf.clij2.plugins.StatisticsOfLabelledPixels;
 import net.haesleinhuepf.clijx.CLIJx;
 import net.haesleinhuepf.clijx.utilities.CLIJUtilities;
@@ -41,6 +48,7 @@ public class MeshMeasurements extends DataSetMeasurements {
     double blurSigma = 3;
     double backgroundBlurSigma = 0;
 
+    boolean show_table_visualisation_on_screen = false;
     boolean projection_visualisation_on_screen = true;
     boolean projection_visualisation_to_disc = true;
 
@@ -90,6 +98,7 @@ public class MeshMeasurements extends DataSetMeasurements {
     private boolean storeMeasurements = false;
 
     private boolean measure_distances_in_detail = false;
+    private boolean storeProjections = true;
 
     public MeshMeasurements setCut(
             double gapX,
@@ -121,6 +130,11 @@ public class MeshMeasurements extends DataSetMeasurements {
     public MeshMeasurements(ClearControlDataSet dataSet) {
         super(dataSet);
         clijx = CLIJx.getInstance();
+    }
+
+    public MeshMeasurements(ClearControlDataSet dataSet, CLIJx clijx) {
+        super(dataSet);
+        this.clijx = clijx;
     }
 
     public MeshMeasurements setZoomFactor(double zoomFactor) {
@@ -221,6 +235,18 @@ public class MeshMeasurements extends DataSetMeasurements {
         return this;
     }
 
+    public MeshMeasurements setStoreProjections(boolean storeProjections) {
+        this.storeProjections = storeProjections;
+        return this;
+    }
+
+
+    public MeshMeasurements setShowTableOnScreen(boolean show_table_visualisation_on_screen) {
+        this.show_table_visualisation_on_screen = show_table_visualisation_on_screen;
+        return this;
+    }
+
+
     public MeshMeasurements setCLIJx(CLIJx clijx) {
         this.clijx = clijx;
         return this;
@@ -269,6 +295,30 @@ public class MeshMeasurements extends DataSetMeasurements {
     public MeshMeasurements setRotationZ(double rotationZ) {
         this.rotationZ = rotationZ;
         return this;
+    }
+
+    public double getTranslationX() {
+        return translationX;
+    }
+
+    public double getTranslationY() {
+        return translationY;
+    }
+
+    public double getTranslationZ() {
+        return translationZ;
+    }
+
+    public double getRotationX() {
+        return rotationX;
+    }
+
+    public double getRotationY() {
+        return rotationY;
+    }
+
+    public double getRotationZ() {
+        return rotationZ;
     }
 
     public MeshMeasurements setBackgroundSubtractionSigma(double backgroundBlurSigma) {
@@ -346,25 +396,85 @@ public class MeshMeasurements extends DataSetMeasurements {
                 break;
             }
 
+            invalidate();
             processFrame(outputFolder, meshMeasurementTable, f);
 
             //clijx.reportMemory();
         }
     }
 
-    public void processFrame(String outputFolder, ResultsTable meshMeasurementTable, int frame)
-    {
+    public void processFrameForRequestedResult(String outputFolder, ResultsTable meshMeasurementTable, int frame, String requested_result) {
         String targetFilename = "0000000" + frame;
-        targetFilename = targetFilename.substring(targetFilename.length() - 6) + ".raw";;
+        targetFilename = targetFilename.substring(targetFilename.length() - 6) + ".raw";
 
-        processFrame(outputFolder, meshMeasurementTable, frame, targetFilename);
+        processFrame(outputFolder, meshMeasurementTable, frame, targetFilename, requested_result);
     }
 
-    public void processFrame(String outputFolder, ResultsTable meshMeasurementTable, int frame, String filename) {
-        meshMeasurementTable.incrementCounter();
-        meshMeasurementTable.addValue("Frame", frame);
+    @Deprecated
+    public void processFrame(String outputFolder, ResultsTable meshMeasurementTable, int frame)
+    {
+        processFrameForRequestedResult(outputFolder, meshMeasurementTable, frame, "");
+    }
 
-        HashMap<String, ClearCLBuffer> resultImages = new HashMap<String, ClearCLBuffer>();
+    public void invalidate() {
+        processed_frame = -1;
+        clijx.clear();
+        resultImages.clear();
+    }
+
+    public void invalidateTransformed() {
+        String keyToKeep = "VOL_01_RESAMPLED_INPUT";
+        ClearCLImageInterface image = resultImages.get(keyToKeep);
+        for (String key : resultImages.keySet()) {
+            if (key.compareTo(keyToKeep) != 0) {
+                resultImages.get(key).close();
+            }
+        }
+        resultImages.clear();
+        if (image != null) {
+            resultImages.put(keyToKeep, image);
+        }
+    }
+
+
+    public ClearCLImageInterface getResult(int frame, String requested_result) {
+        if (processed_frame != frame) {
+            invalidate();
+        }
+
+        if (!resultImages.containsKey(requested_result)) {
+            processFrameForRequestedResult(null, null, frame, requested_result);
+        }
+
+        return resultImages.get(requested_result);
+    }
+
+    public String[] getResultIDs() {
+        Set<String> keys = resultImages.keySet();
+        ArrayList<String> list = new ArrayList<String>();
+        list.addAll(keys);
+        Collections.sort(list);
+        String[] array = new String[list.size()];
+        list.toArray(array);
+        return array;
+    }
+
+    HashMap<String, ClearCLImageInterface> resultImages = new HashMap<String, ClearCLImageInterface>();
+    int processed_frame = - 1;
+
+    public void processFrame(String outputFolder, ResultsTable meshMeasurementTable, int frame, String filename) {
+        processFrame(outputFolder, meshMeasurementTable, frame, filename, "");
+    }
+
+    public void processFrame(String outputFolder, ResultsTable meshMeasurementTable, int frame, String filename, String requested_result) {
+        // --------------------------------------------------------------------
+        // HANDLE Table
+        if (meshMeasurementTable != null) {
+            meshMeasurementTable.incrementCounter();
+            meshMeasurementTable.addValue("Frame", frame);
+        }
+
+        processed_frame = frame;
 
         long timestamp = System.currentTimeMillis();
 
@@ -379,91 +489,140 @@ public class MeshMeasurements extends DataSetMeasurements {
         //System.out.println(foldername + filename)
         // # break;
 
-        ClearCLBuffer pushedImage = clijx.push(timePointStack);
-        //clijx.create([512, 1024, 67], NativeTypeEnum.UnsignedShort);
-        pushedImage.setName("pushedImage");
-        clijx.stopWatch("load data");
+        // -------------------------------------------------------------------------------------------------------------
+        // loading and resampling
+        String key_resampled = "VOL_01_RESAMPLED_INPUT";
 
-        if (doCut && cutTimeInSeconds < dataSet.getTimesInSeconds()[frame]) {
-            cut(pushedImage,
-                    this.gapX,
-                    this.gapY,
-                    this.gapWidth,
-                    this.gapHeight,
-                    this.cutBlurSigma,
-                    this.cutBackgroundIntensity,
-                    this.cutShiftDistance);
+        ClearCLImage resampledImage = (ClearCLImage) resultImages.get(key_resampled);
+        if (resampledImage == null) {
 
-            this.cutShiftDistance = this.cutShiftDistance + cutShiftSpeed;
-            cutShiftSpeed = cutShiftSpeed * cutDeceleration;
+            ClearCLBuffer pushedImage = clijx.push(timePointStack);
+            //clijx.create([512, 1024, 67], NativeTypeEnum.UnsignedShort);
+            pushedImage.setName("pushedImage");
+            clijx.stopWatch("load data");
+
+            if (doCut && cutTimeInSeconds < dataSet.getTimesInSeconds()[frame]) {
+                cut(pushedImage,
+                        this.gapX,
+                        this.gapY,
+                        this.gapWidth,
+                        this.gapHeight,
+                        this.cutBlurSigma,
+                        this.cutBackgroundIntensity,
+                        this.cutShiftDistance);
+
+                this.cutShiftDistance = this.cutShiftDistance + cutShiftSpeed;
+                cutShiftSpeed = cutShiftSpeed * cutDeceleration;
+            }
+
+            //ClearCLBuffer temp = clijx.create(new long[]{pushedImage.getWidth(), pushedImage.getHeight()}, pushedImage.getNativeType());
+            //clijx.maximumZProjection(pushedImage, temp);
+            //clijx.showGrey(temp, "Temp");
+            //temp.close();
+            //if (true) return;
+
+
+            // IJ.run(imp, "32-bit", "");
+            // IJ.run(imp, "Rotate 90 Degrees Right", "");
+            // imp.show();
+
+            Calibration calibration = timePointStack.getCalibration();
+            double factorX = calibration.pixelWidth * zoomFactor;
+            double factorY = calibration.pixelHeight * zoomFactor;
+            double factorZ = calibration.pixelDepth * zoomFactor;
+
+
+            long w = (long) (pushedImage.getWidth() * factorX);
+            long h = (long) (pushedImage.getHeight() * factorY);
+            long d = (long) (pushedImage.getDepth() * factorZ);
+
+            System.out.println(new long[]{w, h, d});
+
+            long[] size = new long[]{w, h, d};
+            //size = padSize(size);
+            resampledImage = clijx.create(size, CLIJUtilities.nativeToChannelType(pushedImage.getNativeType()));
+            resampledImage.setName("resampledImage");
+
+            System.out.println("PushedImage: " + pushedImage);
+
+            clijx.resample(pushedImage, resampledImage, 1.0 / factorX, 1.0 / factorY, 1.0 / factorZ, true);
+
+            clijx.stopWatch("resample");
+            resultImages.put(key_resampled, resampledImage);
+
+
+
+            clijx.release(pushedImage);
         }
-        ;
 
-        //ClearCLBuffer temp = clijx.create(new long[]{pushedImage.getWidth(), pushedImage.getHeight()}, pushedImage.getNativeType());
-        //clijx.maximumZProjection(pushedImage, temp);
-        //clijx.showGrey(temp, "Temp");
-        //temp.close();
-        //if (true) return;
+        //////////////////////////////////////////////////////
+        // if we have what we were looking for, leave       //
+        if (resultImages.containsKey(requested_result)) {   //
+            return;                                         //
+        }                                                   //
+        //////////////////////////////////////////////////////
 
-
-        // IJ.run(imp, "32-bit", "");
-        // IJ.run(imp, "Rotate 90 Degrees Right", "");
-        // imp.show();
-
-        Calibration calibration = timePointStack.getCalibration();
-        double factorX = calibration.pixelWidth * zoomFactor;
-        double factorY = calibration.pixelHeight * zoomFactor;
-        double factorZ = calibration.pixelDepth * zoomFactor;
-
-        // -----------------------------------------------------------------------
-        // resampling
-        long w = (long) (pushedImage.getWidth() * factorX);
-        long h = (long) (pushedImage.getHeight() * factorY);
-        long d = (long) (pushedImage.getDepth() * factorZ);
-
-        System.out.println(new long[]{w, h, d});
-
-        ClearCLImage resampledImage = clijx.create(new long[]{w, h, d}, CLIJUtilities.nativeToChannelType(pushedImage.getNativeType()));
-        resampledImage.setName("resampledImage");
-
-        System.out.println("PushedImage: " + pushedImage);
-
-        clijx.resample(pushedImage, resampledImage, 1.0 / factorX, 1.0 / factorY, 1.0 / factorZ, true);
-
-
-        clijx.stopWatch("resample");
-
-        ClearCLImage backgroundSubtractedImage = clijx.create(resampledImage);
-        if (backgroundBlurSigma > 0) {
-            clijx.subtractBackground3D(resampledImage, backgroundSubtractedImage, backgroundBlurSigma, backgroundBlurSigma, backgroundBlurSigma);
-        } else {
-            clijx.copy(resampledImage, backgroundSubtractedImage);
+        // -------------------------------------------------------------------------------------------------------------
+        // background subtraction (optional)
+        String key_background_subtracted = "VOL_02_BACKGROUND_SUBTRACTED";
+        ClearCLImage backgroundSubtractedImage = (ClearCLImage) resultImages.get(key_background_subtracted);
+        if (backgroundSubtractedImage == null) {
+            backgroundSubtractedImage = clijx.create(resampledImage);
+            if (backgroundBlurSigma > 0) {
+                clijx.subtractBackground3D(resampledImage, backgroundSubtractedImage, backgroundBlurSigma, backgroundBlurSigma, backgroundBlurSigma);
+                resultImages.put(key_background_subtracted, resampledImage);
+            } else {
+                backgroundSubtractedImage = resampledImage;
+            }
         }
-        //clijx.show(pushedImage, "Pus");
-        //clijx.show(resampledImage, "Res");
-        //clijx.show(backgroundSubtractedImage, "Bac");
-        clijx.release(resampledImage);
-
-
         clijx.stopWatch("background subtraction");
 
-        ClearCLBuffer inputImage = clijx.create(new long[]{w, h, d}, backgroundSubtractedImage.getNativeType());
+        //////////////////////////////////////////////////////
+        // if we have what we were looking for, leave       //
+        if (resultImages.containsKey(requested_result)) {   //
+            return;                                         //
+        }                                                   //
+        //////////////////////////////////////////////////////
 
-        inputImage.setName("inputImage");
-        //clijx.rotateRight(resampledImage, inputImage);
+        // -------------------------------------------------------------------------------------------------------------
+        // affine transform
+        String key_transformed = "VOL_03_TRANSFORMED_INPUT";
+        ClearCLBuffer inputImage = (ClearCLBuffer) resultImages.get(key_transformed);
+        if (inputImage == null) {
+            inputImage = clijx.create(resampledImage.getDimensions(), resampledImage.getNativeType());
 
-        AffineTransform3D at = new AffineTransform3D();
-        at.translate(-inputImage.getWidth() / 2, -inputImage.getHeight() / 2, -inputImage.getDepth() / 2);
-        at.translate(translationX, translationY, translationZ);
-        at.rotate(0, rotationX * Math.PI / 180.0);
-        at.rotate(1, rotationY * Math.PI / 180.0);
-        at.rotate(2, rotationZ * Math.PI / 180.0);
-        at.translate(inputImage.getWidth() / 2, inputImage.getHeight() / 2, inputImage.getDepth() / 2);
+            inputImage.setName("inputImage");
+            //clijx.rotateRight(resampledImage, inputImage);
 
-        clijx.affineTransform3D(backgroundSubtractedImage, inputImage, at);
+            AffineTransform3D at = new AffineTransform3D();
+            at.translate(-inputImage.getWidth() / 2, -inputImage.getHeight() / 2, -inputImage.getDepth() / 2);
+            at.translate(translationX, translationY, translationZ);
+            at.rotate(0, rotationX * Math.PI / 180.0);
+            at.rotate(1, rotationY * Math.PI / 180.0);
+            at.rotate(2, rotationZ * Math.PI / 180.0);
+            at.translate(inputImage.getWidth() / 2, inputImage.getHeight() / 2, inputImage.getDepth() / 2);
 
+            clijx.affineTransform3D(backgroundSubtractedImage, inputImage, at);
+            resultImages.put(key_transformed, inputImage);
 
-        clijx.release(backgroundSubtractedImage);
+            if (projection_visualisation_on_screen || projection_visualisation_to_disc || storeProjections) {
+
+                // save maximum and average projections to disc
+                ClearCLBuffer[] result = arg_max_projection(inputImage);
+                resultImages.put("01_max_image", result[0]);
+                resultImages.put("02_arg_max_image", result[1]);
+            }
+        }
+
+        System.out.println("SEARCHING FOR " + requested_result);
+        //////////////////////////////////////////////////////
+        // if we have what we were looking for, leave       //
+        if (resultImages.containsKey(requested_result)) {   //
+            return;                                         //
+        }                                                   //
+        //////////////////////////////////////////////////////
+
+        //clijx.release(backgroundSubtractedImage);
 
         clijx.stopWatch("affine transform");
 
@@ -474,22 +633,60 @@ public class MeshMeasurements extends DataSetMeasurements {
         //}
         // clijx.saveAsTIF( inputImage,                outputFolder + "_input/" + filename + ".tif");
 
-        // -----------------------------------------------------------------------
+        // -------------------------------------------------------------------------------------------------------------
         // spot detection
-        ClearCLBuffer detected_spots = spot_detection(inputImage);
-        //clijx.show(detected_spots, "detected_spots");
-        //if (true) return;
-        clijx.stopWatch("spot detection");
+        String key_det_spots = "VOL_04_DETECTED_SPOTS";
+        ClearCLBuffer detected_spots = (ClearCLBuffer) resultImages.get(key_det_spots);
+        if (detected_spots == null) {
+            detected_spots = spot_detection(inputImage);
 
+            //clijx.show(detected_spots, "detected_spots");
+            //if (true) return;
+            clijx.stopWatch("spot detection");
+            resultImages.put(key_det_spots, detected_spots);
+
+            if (projection_visualisation_on_screen || projection_visualisation_to_disc || storeProjections) {
+
+                resultImages.put("03_max_spots", max_z_projection(detected_spots));
+            }
+
+        }
+
+
+        //////////////////////////////////////////////////////
+        // if we have what we were looking for, leave       //
+        if (resultImages.containsKey(requested_result)) {   //
+            return;                                         //
+        }                                                   //
+        //////////////////////////////////////////////////////
+
+        // -------------------------------------------------------------------------------------------------------------
+        // Spot labelling, cell segmentation, ray tracing
+        boolean hasToBeRegenerated = false;
         // label spots
-        ClearCLBuffer labelled_spots = labelSpots(detected_spots);
-        clijx.stopWatch("spot labelling (CCA)");
+        String key_spots = "VOL_05_LABELLED_SPOTS";
+
+        ClearCLBuffer labelled_spots = (ClearCLBuffer) resultImages.get(key_spots);
+
+        if (labelled_spots == null) {
+            labelled_spots = labelSpots(detected_spots);
+            clijx.stopWatch("spot labelling (CCA)");
+            hasToBeRegenerated = true;
+        }
+
+        String key_cells = "VOL_06_LABELLED_CELLS";
 
         // cell segmentation
-        ClearCLBuffer segmented_cells = pseudo_cell_segmentation(labelled_spots);
-        clijx.stopWatch("cell segmentation");
+        ClearCLBuffer segmented_cells = (ClearCLBuffer) resultImages.get(key_cells);
 
-        if (eliminateSubSurfaceCells) {
+        if (segmented_cells == null) {
+            segmented_cells = pseudo_cell_segmentation(labelled_spots);
+            clijx.stopWatch("cell segmentation");
+            hasToBeRegenerated = true;
+        }
+
+
+        if (eliminateSubSurfaceCells && hasToBeRegenerated) {
 
             int number_of_spots = (int) clijx.maximumOfAllPixels(labelled_spots);
 
@@ -522,7 +719,7 @@ public class MeshMeasurements extends DataSetMeasurements {
             clijx.release(pointlist);
             clijx.release(temp);
         }
-        if (eliminateOnSurfaceCells) {
+        if (eliminateOnSurfaceCells && hasToBeRegenerated) {
 
             int number_of_spots = (int) clijx.maximumOfAllPixels(labelled_spots);
 
@@ -555,6 +752,19 @@ public class MeshMeasurements extends DataSetMeasurements {
             clijx.release(pointlist);
             clijx.release(temp);
         }
+        resultImages.put(key_spots, labelled_spots);
+        resultImages.put(key_cells, segmented_cells);
+
+
+        //////////////////////////////////////////////////////
+        // if we have what we were looking for, leave       //
+        if (resultImages.containsKey(requested_result)) {   //
+            return;                                         //
+        }                                                   //
+        //////////////////////////////////////////////////////
+
+        // -------------------------------------------------------------------------------------------------------------
+        // Statistics of labelled objects
 
         if (storeMeasurements) {
 
@@ -587,22 +797,41 @@ public class MeshMeasurements extends DataSetMeasurements {
         //ClearCLBuffer mean_membranes = null;
         //ClearCLBuffer nonzero_min_membranes = null;
 
-        if (projection_visualisation_on_screen || projection_visualisation_to_disc) {
+        // -------------------------------------------------------------------------------------------------------------
+        // cell outlines
+        if (projection_visualisation_on_screen || projection_visualisation_to_disc || storeProjections) {
             // cell outlines
-            ClearCLBuffer cell_outlines = label_outlines(segmented_cells);
-            clijx.stopWatch("outline labels");
-
+            String key_cell_outlines = "VOL_07_CELL_OUTLINES";
+            ClearCLBuffer cell_outlines = (ClearCLBuffer) resultImages.get(key_cell_outlines);
+            if (cell_outlines == null) {
+                cell_outlines = label_outlines(segmented_cells);
+                resultImages.put(key_cell_outlines, cell_outlines);
+                clijx.stopWatch("outline labels");
+            }
             resultImages.put("04_max_membranes", max_z_projection(cell_outlines));
             resultImages.put("05_mean_membranes", mean_projection(cell_outlines));
             resultImages.put("06_nonzero_min_membranes", nonzero_min_projection(cell_outlines));
 
-            clijx.release(cell_outlines);
+            //clijx.release(cell_outlines);
         }
+
+
+        //////////////////////////////////////////////////////
+        // if we have what we were looking for, leave       //
+        if (resultImages.containsKey(requested_result)) {   //
+            return;                                         //
+        }                                                   //
+        //////////////////////////////////////////////////////
+
+        // -------------------------------------------------------------------------------------------------------------
+        // touching neighbors and distances
 
         // -----------------------------------------------------------------------
         // convert spots image to spot list
         int number_of_spots = (int) clijx.sumPixels(detected_spots);
-        meshMeasurementTable.addValue("spot_count", number_of_spots);
+        if (meshMeasurementTable != null) {
+            meshMeasurementTable.addValue("spot_count", number_of_spots);
+        }
 
         if (number_of_spots < 1) {
             // we have to have a non-zero sized stack in the next step...
@@ -619,6 +848,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         // -----------------------------------------------------------------------
         // neighborhood analysis
+        System.out.println("Pointlist " + pointlist);
         ClearCLBuffer distance_matrix = generateDistanceMatrix(pointlist, number_of_spots, zoomFactor);
         resultImages.put("14_distance_matrix", distance_matrix);
         resultImages.put("15_pixel2", clijx.create(1,1,1));
@@ -651,6 +881,10 @@ public class MeshMeasurements extends DataSetMeasurements {
         // ------------------------------------------------------------------
 
         clijx.stopWatch("");
+
+        System.out.println("Touch matrix: " + touch_matrix);
+        System.out.println("Distance matrix: " + distance_matrix);
+
         ClearCLBuffer distance_vector = measureAverageDistanceOfTouchingNeighbors(touch_matrix, distance_matrix);
         clijx.stopWatch("average distance");
         //ClearCLBuffer surface_angle_vector = measureAverageSurfaceAngle(pointlist, touch_matrix);
@@ -675,16 +909,36 @@ public class MeshMeasurements extends DataSetMeasurements {
         //ClearCLBuffer max_neigh_touch = null;
         //ClearCLBuffer mean_neigh_touch = null;
         //ClearCLBuffer nonzero_min_neigh_touch = null;
+
+        // -------------------------------------------------------------------------------------------------------------
+        // count neighbors
         {
-            ClearCLBuffer neighbor_count = generateParametricImage(neighbor_count_vector, segmented_cells);
+            String key_neighbor_count = "VOL_08_NEIGHBOR_COUNT";
+            ClearCLBuffer neighbor_count = (ClearCLBuffer) resultImages.get(key_neighbor_count);
+            if (neighbor_count == null) {
+                neighbor_count = generateParametricImage(neighbor_count_vector, segmented_cells);
+                if (requested_result.compareTo(key_neighbor_count) == 0) {
+                    resultImages.put(key_neighbor_count, neighbor_count);
+                }
+            }
             storeMeasurement("neighbor_count", neighbor_count_vector);
             if (projection_visualisation_on_screen || projection_visualisation_to_disc) {
                 resultImages.put("19_max_neigh_touch", max_z_projection(neighbor_count));
                 resultImages.put("20_mean_neigh_touch", mean_projection(neighbor_count));
                 resultImages.put("21_nonzero_min_neigh_touch", nonzero_min_projection(neighbor_count));
             }
-            clijx.release(neighbor_count);
+            // don't keep it if we didn't ask for it
+            if (requested_result.compareTo(key_neighbor_count) != 0) {
+                clijx.release(neighbor_count);
+            }
         }
+
+        //////////////////////////////////////////////////////
+        // if we have what we were looking for, leave       //
+        if (resultImages.containsKey(requested_result)) {   //
+            return;                                         //
+        }                                                   //
+        //////////////////////////////////////////////////////
 
         //clijx.show(averag_distance_of_touching_neighbors, "averag_distance_of_touching_neighbors");
 
@@ -696,35 +950,72 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         System.out.println("Dist mat " + Arrays.toString(distance_matrix.getDimensions()));
         //System.out.println(clijx.reportMemory());
-        double meanDistance = clijx.meanOfPixelsAboveThreshold(relevantDistances, 0);
-        double varianceDistance = clijx.varianceOfMaskedPixels(relevantDistances, touch_matrix, meanDistance);
-        meshMeasurementTable.addValue("mean_neighbor_distance", meanDistance);
-        meshMeasurementTable.addValue("variance_neighbor_distance", varianceDistance);
         double numberOfTouches = clijx.sumOfAllPixels(touch_matrix);
-        meshMeasurementTable.addValue("number_of_touches", numberOfTouches);
+        if (meshMeasurementTable != null) {
+            double meanDistance = clijx.meanOfPixelsAboveThreshold(relevantDistances, 0);
+            double varianceDistance = clijx.varianceOfMaskedPixels(relevantDistances, touch_matrix, meanDistance);
+            meshMeasurementTable.addValue("mean_neighbor_distance", meanDistance);
+            meshMeasurementTable.addValue("variance_neighbor_distance", varianceDistance);
+            meshMeasurementTable.addValue("number_of_touches", numberOfTouches);
+        }
+        relevantDistances.close();
 
-        ClearCLBuffer mesh = clijx.create(inputImage);
-        mesh.setName("mesh");
-        clijx.touchMatrixToMesh(pointlist, touch_matrix, mesh);
-        clijx.stopWatch("mesh");
+        // -------------------------------------------------------------------------------------------------------------
+        // draw mesh
+        String key_mesh = "VOL_07_MESH";
+        ClearCLBuffer mesh = (ClearCLBuffer) resultImages.get("VOL_07_MESH");
+        if (mesh == null) {
+            mesh = clijx.create(inputImage);
+            mesh.setName("mesh");
+            clijx.touchMatrixToMesh(pointlist, touch_matrix, mesh);
 
-        ClearCLBuffer average_distance_of_touching_neighbors = generateParametricImage(distance_vector, segmented_cells);
-        storeMeasurement("average_distance", distance_vector);
+            resultImages.put(key_mesh, mesh);
+            clijx.stopWatch("mesh");
+        }
 
-        double meanDistance2 = clijx.meanOfMaskedPixels(average_distance_of_touching_neighbors, detected_spots);
-        double varianceDistance2 = clijx.varianceOfMaskedPixels(average_distance_of_touching_neighbors, detected_spots, meanDistance);
-        meshMeasurementTable.addValue("mean_neighbor_distance2", meanDistance2);
-        meshMeasurementTable.addValue("variance_neighbor_distance2", varianceDistance2);
+        //////////////////////////////////////////////////////
+        // if we have what we were looking for, leave       //
+        if (resultImages.containsKey(requested_result)) {   //
+            return;                                         //
+        }                                                   //
+        //////////////////////////////////////////////////////
+
+        // -------------------------------------------------------------------------------------------------------------
+        String key_avg_neighbor_distance = "VOL_08_AVG_DISTANCE_TO_NEIGHBORS";
+
+        ClearCLBuffer average_distance_of_touching_neighbors = (ClearCLBuffer) resultImages.get(key_avg_neighbor_distance);
+        if (average_distance_of_touching_neighbors == null) {
+            average_distance_of_touching_neighbors = generateParametricImage(distance_vector, segmented_cells);
+            storeMeasurement("average_distance", distance_vector);
+        }
+        resultImages.put(key_avg_neighbor_distance, average_distance_of_touching_neighbors);
+
+
+        if (meshMeasurementTable != null) {
+            double meanDistance2 = clijx.meanOfMaskedPixels(average_distance_of_touching_neighbors, detected_spots);
+            double varianceDistance2 = clijx.varianceOfMaskedPixels(average_distance_of_touching_neighbors, detected_spots, meanDistance2);
+            meshMeasurementTable.addValue("mean_neighbor_distance2", meanDistance2);
+            meshMeasurementTable.addValue("variance_neighbor_distance2", varianceDistance2);
+        }
 
         //ClearCLBuffer max_avg_dist = null;
         //ClearCLBuffer mean_avg_dist = null;
         //ClearCLBuffer nonzero_min_avg_dist = null;
-        if (projection_visualisation_on_screen || projection_visualisation_to_disc) {
+        if (projection_visualisation_on_screen || projection_visualisation_to_disc || storeProjections) {
             resultImages.put("16_max_avg_dist", max_z_projection(average_distance_of_touching_neighbors));
             resultImages.put("17_mean_avg_dist", mean_projection(average_distance_of_touching_neighbors));
             resultImages.put("18_nonzero_min_avg_dist", nonzero_min_projection(average_distance_of_touching_neighbors));
         }
-        clijx.release(average_distance_of_touching_neighbors);
+        //clijx.release(average_distance_of_touching_neighbors);
+
+        //////////////////////////////////////////////////////
+        // if we have what we were looking for, leave       //
+        if (resultImages.containsKey(requested_result)) {   //
+            return;                                         //
+        }                                                   //
+        //////////////////////////////////////////////////////
+
+        // -------------------------------------------------------------------------------------------------------------
 
         if (measure_distances_in_detail) {
             int[] ns = new int[]{1, 2, 4, 6, 10, 20};
@@ -767,13 +1058,21 @@ public class MeshMeasurements extends DataSetMeasurements {
 //                nonzero_min_min_dist = nonzero_min_projection(minimum_distance_of_touching_neighbors);
 //            }
 
+        //////////////////////////////////////////////////////
+        // if we have what we were looking for, leave       //
+        if (resultImages.containsKey(requested_result)) {   //
+            return;                                         //
+        }                                                   //
+        //////////////////////////////////////////////////////
 
         // -----------------------------------------------------------------------
         // Visualisation / output
         if (exportMesh) {
             if (number_of_spots > 1 && numberOfTouches > 0) {
                 clijx.stopWatch("export vtk");
-                clijx.writeVTKLineListToDisc(pointlist, touch_matrix, outputFolder + "_vtk_mesh/" + filename.replace(".raw", "") + ".vtk");
+                if (outputFolder != null) {
+                    clijx.writeVTKLineListToDisc(pointlist, touch_matrix, outputFolder + "_vtk_mesh/" + filename.replace(".raw", "") + ".vtk");
+                }
                 //clijx.writeXYZPointListToDisc(pointlist, outputFolder + "_vtk_mesh/" + filename.replace(".raw", "") + ".xyz");
                 clijx.stopWatch("export vtk");
             }
@@ -783,21 +1082,17 @@ public class MeshMeasurements extends DataSetMeasurements {
             ResultsTable table = getAllMeasurements();
             ClearCLBuffer measurementsImage = clijx.create(table.getHeadings().length, table.size());
             clijx.resultsTableToImage2D(measurementsImage, table);
-            clijx.saveAsTIF(measurementsImage,outputFolder + "_measurements/" + filename + ".tif");
-            table.save(outputFolder + "_measurements/" + filename + ".csv");
+            if (outputFolder != null) {
+                clijx.saveAsTIF(measurementsImage, outputFolder + "_measurements/" + filename + ".tif");
+                table.save(outputFolder + "_measurements/" + filename + ".csv");
+            }
             measurementsImage.close();
         }
-        if (projection_visualisation_on_screen || projection_visualisation_to_disc) {
-
-            // save maximum and average projections to disc
-            result = arg_max_projection(inputImage);
-            resultImages.put("01_max_image", result[0]);
-            resultImages.put("02_arg_max_image", result[1]);
-            resultImages.put("03_max_spots", max_z_projection(detected_spots));
+        if (projection_visualisation_on_screen || projection_visualisation_to_disc || storeProjections) {
 
             result = arg_max_projection(segmented_cells);
-            resultImages.put("07_max_cells", result[0]);
-            resultImages.put("08_arg_max_cells", result[1]);
+            resultImages.put("07_max_labelled_cells", result[0]);
+            resultImages.put("08_arg_max_labelled_cells", result[1]);
             resultImages.put("09_pixel1", clijx.create(1,1,1));
 
             resultImages.put("10_max_mesh_x", max_x_projection(mesh));
@@ -812,35 +1107,40 @@ public class MeshMeasurements extends DataSetMeasurements {
             if (projection_visualisation_to_disc) {
                 for (String key : resultKeys) {
                     String saveKey = key; //.substring(2);
-                    ClearCLBuffer buffer = resultImages.get(key);
-                    if (drawText) {
-                        ImagePlus imp = clijx.pull(buffer);
-                        if (key.endsWith("image")) {
-                            imp.setDisplayRange(0, 1000);
-                        } else if (key.endsWith("dist") || key.endsWith("_ang") || key.contains("_neigh_touch")) {
-                            imp.setDisplayRange(0, 255);
-                        } else if (key.contains("mesh")) {
-                            imp.setDisplayRange(0, 1);
+                    ClearCLImageInterface buffer1 = resultImages.get(key);
+                    if (buffer1 instanceof ClearCLBuffer && buffer1.getDepth() == 1) {
+                        ClearCLBuffer buffer = (ClearCLBuffer) buffer1;
+                        if (drawText) {
+                            ImagePlus imp = clijx.pull(buffer);
+                            if (key.endsWith("image")) {
+                                imp.setDisplayRange(0, 1000);
+                            } else if (key.endsWith("dist") || key.endsWith("_ang") || key.contains("_neigh_touch")) {
+                                imp.setDisplayRange(0, 255);
+                            } else if (key.contains("mesh")) {
+                                imp.setDisplayRange(0, 1);
+                            }
+                            IJ.run(imp, "8-bit", "");
+
+                            ImageProcessor ip = imp.getProcessor();
+                            ip.setColor(new Color(255, 255, 255));
+                            ip.setFont(new Font("SanSerif", Font.PLAIN, 15));
+                            ip.drawString(key, 10, 30);
+                            ip.setFont(new Font("SanSerif", Font.PLAIN, 25));
+                            ip.drawString(humanReadableTime((int) dataSet.getTimesInSeconds()[frame]), 10, 65);
+
+                            imp.getCalibration().pixelWidth = 1.0 / zoomFactor;
+                            imp.getCalibration().pixelHeight = 1.0 / zoomFactor;
+                            imp.getCalibration().setUnit("um");
+                            IJ.run(imp,
+                                    "Scale Bar...",
+                                    "width=100 height=5 font=25 color=White background=None location=[Lower Left]");
+
+                            buffer = clijx.push(imp);
                         }
-                        IJ.run(imp, "8-bit", "");
-
-                        ImageProcessor ip = imp.getProcessor();
-                        ip.setColor(new Color(255, 255, 255));
-                        ip.setFont(new Font("SanSerif", Font.PLAIN, 15));
-                        ip.drawString(key, 10, 30);
-                        ip.setFont(new Font("SanSerif", Font.PLAIN, 25));
-                        ip.drawString(humanReadableTime((int) dataSet.getTimesInSeconds()[frame]), 10, 65);
-
-                        imp.getCalibration().pixelWidth = 1.0 / zoomFactor;
-                        imp.getCalibration().pixelHeight = 1.0 / zoomFactor;
-                        imp.getCalibration().setUnit("um");
-                        IJ.run(imp,
-                                "Scale Bar...",
-                                "width=100 height=5 font=25 color=White background=None location=[Lower Left]");
-
-                        buffer = clijx.push(imp);
+                        if (outputFolder != null) {
+                            clijx.saveAsTIF(buffer, outputFolder + saveKey + "/" + filename + ".tif");
+                        }
                     }
-                    clijx.saveAsTIF(buffer, outputFolder + saveKey + "/" + filename + ".tif");
                 }
                 /*
                 clijx.saveAsTIF(max_image, outputFolder + "_max_image/" + filename + ".tif");
@@ -915,7 +1215,10 @@ public class MeshMeasurements extends DataSetMeasurements {
                 */
                 for (String key : resultKeys) {
                     String saveKey = key.substring(2);
-                    clijx.showGrey(resultImages.get(key), saveKey);
+                    ClearCLImageInterface buffer1 = resultImages.get(key);
+                    if (buffer1 instanceof ClearCLBuffer && buffer1.getDepth() == 1) {
+                        clijx.showGrey((ClearCLBuffer) buffer1, saveKey);
+                    }
                 }
 
                 clijx.organiseWindows(0, 0, 8, 3, 200, 350);
@@ -926,22 +1229,32 @@ public class MeshMeasurements extends DataSetMeasurements {
 
             clijx.stopWatch("visualisation");
         }
+        clijx.release(pointlist);
 
         System.out.println("Whole analysis took " + (System.currentTimeMillis() - timestamp) + " ms");
-        clijx.release(pushedImage);
 
         //IJ.log(clijx.reportMemory());
-
-        clijx.clear();
         //break;
 
-        if (projection_visualisation_on_screen) {
+        if (show_table_visualisation_on_screen && meshMeasurementTable != null) {
             meshMeasurementTable.show("Mesh measurements results");
         }
-        if (projection_visualisation_to_disc) {
+        if (projection_visualisation_to_disc && meshMeasurementTable != null) {
             dataSet.saveMeasurementTable(meshMeasurementTable, "processed/meshMeasurements.csv");
         }
     }
+
+    /*private long[] padSize(long[] size) {
+        long[] result = new long[size.length];
+        for (int d = 0; d < result.length; d++) {
+            if (size[d] % 4 == 0) {
+                result[d] = size[d];
+            } else {
+                result[d] = size[d] + (4 - (size[d] % 4));
+            }
+        }
+        return result;
+    }*/
 
     private ClearCLBuffer countNeighbors(ClearCLBuffer touch_matrix) {
         ClearCLBuffer neighbor_count = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
@@ -1031,7 +1344,11 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         // remove spots in background
         //clijx.automaticThreshold(blurred, thresholded, thresholdAlgorithm);
+        clijx.stopWatch("before threshold");
+        CLIJ.debug = true;
         clijx.threshold(blurred, thresholded, threshold);
+        CLIJ.debug = false;
+        clijx.stopWatch("after threshold");
         //clijx.show(blurred, "blurred");
         clijx.mask(detected_spots, thresholded, masked);
 
@@ -1085,29 +1402,66 @@ public class MeshMeasurements extends DataSetMeasurements {
 
     private ClearCLBuffer pseudo_cell_segmentation(ClearCLBuffer labelled_spots) {
 
+        clijx.stopWatch("cell segmentation start");
+
         ClearCLBuffer tempSpots1 = clijx.create(labelled_spots);
     	tempSpots1.setName("Segmented cells");
     	clijx.copy(labelled_spots, tempSpots1);
 
         ClearCLBuffer tempSpots2 = clijx.create(labelled_spots);
 	    tempSpots2.setName("tempSpots2");
+
+
+        ClearCLBuffer tempSpots3 = clijx.create(labelled_spots);
+        tempSpots3.setName("tempSpots3");
+
         ClearCLBuffer flag =clijx.create(new long[]{1, 1, 1});
 	    flag.setName("flag");
 
-    	for (int j = 0; j < numberDoubleDilationsForPseudoCellSegmentation; j++) {
-            clijx.onlyzeroOverwriteMaximumDiamond(tempSpots1, flag, tempSpots2);
-            clijx.onlyzeroOverwriteMaximumBox(tempSpots2, flag, tempSpots1);
+        clijx.stopWatch("cell segmentation alloc");
+
+        ClearCLKernel diamondKernel = null;
+        ClearCLKernel boxKernel = null;
+        for (int j = 0; j < numberDoubleDilationsForPseudoCellSegmentation; j++) {
+            diamondKernel = OnlyzeroOverwriteMaximumDiamond.onlyzeroOverwriteMaximumDiamond(clijx, tempSpots1, flag, tempSpots2, diamondKernel);
+            boxKernel = OnlyzeroOverwriteMaximumBox.onlyzeroOverwriteMaximumBox(clijx, tempSpots2, flag, tempSpots1, boxKernel);
         }
+        if (diamondKernel != null) {
+            diamondKernel.close();
+        }
+        if (boxKernel != null) {
+            boxKernel.close();
+        }
+
+        clijx.stopWatch("cell segmentation box diamond");
+
+
         clijx.release(flag);
 
-        ClearCLBuffer tempSpots3 = clijx.create(labelled_spots);
-    	tempSpots3.setName("tempSpots3");
-	    clijx.threshold(tempSpots1,tempSpots2,1);
+        CLIJ.debug = true;
+/*
+        String openCL = "float value = READ_IMAGE(input, sampler, POS_input_INSTANCE(x, y, z, 0)).x;" +
+                        "if (value > 0) {value = 1;}" +
+                        "WRITE_IMAGE(output, POS_output_INSTANCE(x, y, z, 0), CONVERT_output_PIXEL_TYPE(value));";
+
+        HashMap<String, Object> map = new HashMap<String, Object>();
+        map.put("input", tempSpots1);
+        map.put("output", tempSpots2);
+	    clijx.customOperation(openCL, "", map);*/
+        clijx.threshold(tempSpots1,tempSpots2,1);
+        CLIJ.debug = false;
+
+        clijx.stopWatch("cell segmentation threshold");
+
 
         for (int j = 0; j < numberDoubleErosionsForPseudoCellSegmentation; j++) {
             clijx.erodeBox(tempSpots2, tempSpots3);
             clijx.erodeBox(tempSpots3, tempSpots2);
         }
+
+        clijx.stopWatch("cell segmentation erode");
+
+
         clijx.erodeBox(tempSpots2,tempSpots3);
 	    clijx.copy(tempSpots1,tempSpots2);
 	    clijx.mask(tempSpots2,tempSpots3,tempSpots1);
@@ -1115,6 +1469,9 @@ public class MeshMeasurements extends DataSetMeasurements {
 
     	// clijx.show(tempSpots1,"tempSpots1");
 	    clijx.release(tempSpots2);
+
+        clijx.stopWatch("cell segmentation rest");
+
         return tempSpots1;
     }
 
@@ -1215,7 +1572,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
             ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
 
-            int startFrame = 500;
+            int startFrame = 0;
             //int endFrame = startFrame + 20;
 
             new MeshMeasurements(dataSet).
