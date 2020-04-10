@@ -1,5 +1,6 @@
 package net.haesleinhuepf.imagej.zoo.measurement;
 
+import ij.measure.ResultsTable;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 
 public abstract class DataSetMeasurements  implements Runnable {

@@ -22,6 +22,9 @@ import net.haesleinhuepf.clij2.plugins.OnlyzeroOverwriteMaximumDiamond;
 import net.haesleinhuepf.clij2.plugins.StatisticsOfLabelledPixels;
 import net.haesleinhuepf.clijx.CLIJx;
 import net.haesleinhuepf.clijx.utilities.CLIJUtilities;
+import net.haesleinhuepf.clijx.weka.ApplyWekaToTable;
+import net.haesleinhuepf.clijx.weka.CLIJxWeka2;
+import net.haesleinhuepf.clijx.weka.TrainWekaFromTable;
 import net.haesleinhuepf.imagej.clijutils.CLIJxUtils;
 import net.haesleinhuepf.imagej.zoo.ZooUtilities;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
@@ -34,6 +37,7 @@ import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.*;
 import java.util.List;
 
@@ -99,6 +103,13 @@ public class MeshMeasurements extends DataSetMeasurements {
 
     private boolean measure_distances_in_detail = false;
     private boolean storeProjections = true;
+
+    private boolean transposeXY = false;
+
+    public MeshMeasurements setTransposeXY(boolean transposeXY) {
+        this.transposeXY = transposeXY;
+        return this;
+    }
 
     public MeshMeasurements setCut(
             double gapX,
@@ -178,7 +189,7 @@ public class MeshMeasurements extends DataSetMeasurements {
             array[i] = (float) measurement[i];
         }
 
-        measurements.put(key, array);
+        storeMeasurement(key, array);
     }
 
     private void storeMeasurement(String key, float[] measurement) {
@@ -189,6 +200,14 @@ public class MeshMeasurements extends DataSetMeasurements {
             measurements.remove(key);
         }
         measurements.put(key, measurement);
+
+        ClearCLBuffer labelMap = (ClearCLBuffer) resultImages.get("07_max_labelled_cells");
+        System.out.println("Labelmap " + labelMap);
+        if (labelMap != null) {
+            ClearCLBuffer vector = clijx.push(new Float1(measurement));
+            resultImages.put("07_map_" + key, generateParametricImage(vector, labelMap));
+            vector.close();
+        }
     }
 
     public ResultsTable getAllMeasurements() {
@@ -340,6 +359,36 @@ public class MeshMeasurements extends DataSetMeasurements {
         return this;
     }
 
+    public double getBlurSigma() {
+        return blurSigma;
+    }
+
+    public double getBackgroundBlurSigma() {
+        return backgroundBlurSigma;
+    }
+
+    public double getThreshold() {
+        return threshold;
+    }
+
+    public boolean isEliminateSubSurfaceCells() {
+        return eliminateSubSurfaceCells;
+    }
+
+    public boolean isEliminateOnSurfaceCells() {
+        return eliminateOnSurfaceCells;
+    }
+
+    public boolean isDrawText() {
+        return drawText;
+    }
+
+    public MeshMeasurements setDrawText(boolean drawText) {
+        this.drawText = drawText;
+        return this;
+    }
+
+
     @Override
     public void run() {
 
@@ -403,11 +452,14 @@ public class MeshMeasurements extends DataSetMeasurements {
         }
     }
 
-    public void processFrameForRequestedResult(String outputFolder, ResultsTable meshMeasurementTable, int frame, String requested_result) {
-        String targetFilename = "0000000" + frame;
-        targetFilename = targetFilename.substring(targetFilename.length() - 6) + ".raw";
+    public ClearCLImageInterface processFrameForRequestedResult(String outputFolder, ResultsTable meshMeasurementTable, int frame, String requested_result) {
+        if (!resultImages.containsKey(requested_result)) {
+            String targetFilename = "0000000" + frame;
+            targetFilename = targetFilename.substring(targetFilename.length() - 6) + ".raw";
 
-        processFrame(outputFolder, meshMeasurementTable, frame, targetFilename, requested_result);
+            processFrame(outputFolder, meshMeasurementTable, frame, targetFilename, requested_result);
+        }
+        return resultImages.get(requested_result);
     }
 
     @Deprecated
@@ -449,13 +501,34 @@ public class MeshMeasurements extends DataSetMeasurements {
         return resultImages.get(requested_result);
     }
 
+    private String[] resultIDs = null;
+    public void setResultIDs(String[] resultIDs) {
+        this.resultIDs = resultIDs;
+    }
+
     public String[] getResultIDs() {
+        if (resultIDs != null ) {
+            return resultIDs;
+        }
         Set<String> keys = resultImages.keySet();
         ArrayList<String> list = new ArrayList<String>();
         list.addAll(keys);
         Collections.sort(list);
-        String[] array = new String[list.size()];
-        list.toArray(array);
+
+        ArrayList<String> secondList = new ArrayList<>();
+
+        ClearCLImageInterface defaultChannel = getResult(processed_frame, list.get(0));
+        secondList.add(list.get(0));
+
+        for (int i = 1; i < list.size(); i++) {
+            ClearCLImageInterface channel = getResult(processed_frame, list.get(i));
+            if (channel.getWidth() == defaultChannel.getWidth() && channel.getHeight() == defaultChannel.getHeight()) {
+                secondList.add(list.get(i));
+            }
+        }
+
+        String[] array = new String[secondList.size()];
+        secondList.toArray(array);
         return array;
     }
 
@@ -497,6 +570,9 @@ public class MeshMeasurements extends DataSetMeasurements {
         if (resampledImage == null) {
 
             ClearCLBuffer pushedImage = clijx.push(timePointStack);
+            if (transposeXY) {
+                pushedImage = transposeImageXY(pushedImage);
+            }
             //clijx.create([512, 1024, 67], NativeTypeEnum.UnsignedShort);
             pushedImage.setName("pushedImage");
             clijx.stopWatch("load data");
@@ -755,6 +831,11 @@ public class MeshMeasurements extends DataSetMeasurements {
         resultImages.put(key_spots, labelled_spots);
         resultImages.put(key_cells, segmented_cells);
 
+        {
+            ClearCLBuffer[] result = arg_max_projection(segmented_cells);
+            resultImages.put("07_max_labelled_cells", result[0]);
+            resultImages.put("08_arg_max_labelled_cells", result[1]);
+        }
 
         //////////////////////////////////////////////////////
         // if we have what we were looking for, leave       //
@@ -765,29 +846,33 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         // -------------------------------------------------------------------------------------------------------------
         // Statistics of labelled objects
-
+        System.out.println("HELLO WORLD");
         if (storeMeasurements) {
+            System.out.println("YES");
 
             ResultsTable table = new ResultsTable();
             clijx.statisticsOfLabelledPixels(inputImage, segmented_cells, table);
             if (table.size() > 0) {
+                System.out.println("YES2");
 
                 String[] columnsToKeep = new String[]{
                         StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_INTENSITY.toString(),
 
                         StatisticsOfLabelledPixels.STATISTICS_ENTRY.STANDARD_DEVIATION_INTENSITY.toString(),
 
-                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_WIDTH.toString(),
-                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_HEIGHT.toString(),
-                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_DEPTH.toString(),
-                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_X.toString(),
-                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Y.toString(),
-                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Z.toString(),
+                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_WIDTH.toString(),
+                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_HEIGHT.toString(),
+                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_DEPTH.toString(),
+                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_X.toString(),
+                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Y.toString(),
+                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Z.toString(),
                         StatisticsOfLabelledPixels.STATISTICS_ENTRY.PIXEL_COUNT.toString(),
                         StatisticsOfLabelledPixels.STATISTICS_ENTRY.MINIMUM_INTENSITY.toString(),
                         StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAXIMUM_INTENSITY.toString()
                 };
                 for (String key : columnsToKeep) {
+                    System.out.println("YES3 " + key);
+
                     storeMeasurement(key, table.getColumn(table.getColumnIndex(key)));
                 }
             }
@@ -1078,21 +1163,66 @@ public class MeshMeasurements extends DataSetMeasurements {
             }
         }
 
+        // -------------------------------------------------------------------------------------------------------------
+        // measurements
+        String key_measurements = "07_measurements";
         if (storeMeasurements) {
-            ResultsTable table = getAllMeasurements();
-            ClearCLBuffer measurementsImage = clijx.create(table.getHeadings().length, table.size());
-            clijx.resultsTableToImage2D(measurementsImage, table);
-            if (outputFolder != null) {
-                clijx.saveAsTIF(measurementsImage, outputFolder + "_measurements/" + filename + ".tif");
-                table.save(outputFolder + "_measurements/" + filename + ".csv");
+            ClearCLBuffer measurementsImage = (ClearCLBuffer) resultImages.get(key_measurements);
+            if (measurementsImage == null) {
+                ResultsTable table = getAllMeasurements();
+                measurementsImage = clijx.create(table.getHeadings().length, table.size());
+                clijx.resultsTableToImage2D(measurementsImage, table);
+                if (outputFolder != null) {
+                    clijx.saveAsTIF(measurementsImage, outputFolder + "_measurements/" + filename + ".tif");
+                    table.save(outputFolder + "_measurements/" + filename + ".csv");
+                }
+                resultImages.put(key_measurements, measurementsImage);
             }
-            measurementsImage.close();
+            //measurementsImage.close();
         }
+
+        // -------------------------------------------------------------------------------------------------------------
+        // classification
+        String key_label_classification = "VOL_02_label_classification";
+        ClearCLBuffer label_classification = (ClearCLBuffer) resultImages.get(key_label_classification);
+
+        if (label_classification == null) {
+            if (clijxweka != null && storeMeasurements) {
+                System.out.println("PREDICTING");
+
+                ClearCLBuffer measurementsImage = (ClearCLBuffer) resultImages.get(key_measurements);
+                ResultsTable table = new ResultsTable();
+                clijx.image2DToResultsTable(measurementsImage, table);
+
+                ApplyWekaToTable.applyWekaToTable(clijx, table, "CLASS", clijxweka);
+                float[] classes = table.getColumn(table.getColumnIndex("CLASS"));
+
+                ClearCLBuffer classification = clijx.push(new Float1(classes));
+                //clijx.print(classification);
+                label_classification = generateParametricImage(classification, segmented_cells);
+                //clijx.show(label_classification, "label_classification");
+
+                ClearCLBuffer labels_max = (ClearCLBuffer) resultImages.get("07_max_labelled_cells");
+                if (labels_max != null) {
+                    ClearCLBuffer labels_max_classification = generateParametricImage(classification, labels_max);
+                    resultImages.put("07_max_labelled_cells_classification", labels_max_classification);
+                } else {
+                    resultImages.put("07_max_labelled_cells_classification", max_z_projection(label_classification));
+                }
+            } else {
+                label_classification = clijx.create(segmented_cells.getDimensions(), clijx.UnsignedByte);
+                clijx.set(label_classification, 0);
+                resultImages.put("07_max_labelled_cells_classification", max_z_projection(label_classification));
+            }
+            resultImages.put(key_label_classification, label_classification);
+            resultImages.put("02_nonzero_min_label_classification", nonzero_min_projection(label_classification));
+            resultImages.put("02_mean_label_classification", mean_projection(label_classification));
+            resultImages.put("02_max_label_classification", max_z_projection(label_classification));
+        }
+        // -------------------------------------------------------------------------------------------------------------
+
         if (projection_visualisation_on_screen || projection_visualisation_to_disc || storeProjections) {
 
-            result = arg_max_projection(segmented_cells);
-            resultImages.put("07_max_labelled_cells", result[0]);
-            resultImages.put("08_arg_max_labelled_cells", result[1]);
             resultImages.put("09_pixel1", clijx.create(1,1,1));
 
             resultImages.put("10_max_mesh_x", max_x_projection(mesh));
@@ -1243,6 +1373,33 @@ public class MeshMeasurements extends DataSetMeasurements {
             dataSet.saveMeasurementTable(meshMeasurementTable, "processed/meshMeasurements.csv");
         }
     }
+
+    private ClearCLBuffer transposeImageXY(ClearCLBuffer pushedImage) {
+        ClearCLBuffer result = clijx.create(new long[]{pushedImage.getHeight(), pushedImage.getWidth(), pushedImage.getDepth()}, pushedImage.getNativeType());
+        clijx.transposeXY(pushedImage, result);
+        pushedImage.close();
+        return result;
+    }
+
+    CLIJxWeka2 clijxweka = null;
+    public void train(ResultsTable table) {
+        clijxweka = TrainWekaFromTable.trainWekaFromTable(clijx, table, "CLASS", 200, 2, 3);
+        storeMeasurements = true;
+    }
+
+    public void invalidateTraining(){
+        clijxweka = null;
+        invalidate();
+    }
+
+    public boolean isTrained() {
+        return clijxweka != null;
+    }
+
+    public int getProcessedFrame() {
+        return processed_frame;
+    }
+
 
     /*private long[] padSize(long[] size) {
         long[] result = new long[size.length];
@@ -1649,5 +1806,18 @@ public class MeshMeasurements extends DataSetMeasurements {
     private MeshMeasurements setAnnotateImagesWithText(boolean drawText) {
         this.drawText = drawText;
         return this;
+    }
+
+    public String getHumanReadableTime() {
+        Duration duration = Duration.ofSeconds((int)dataSet.getTimesInSeconds()
+                [processed_frame]); // in milliseconds
+        return duration.toString()
+                .substring(2)
+                .replaceAll("(\\d[HMS])(?!$)", "$1 ")
+                .toLowerCase();
+    }
+
+    public String getDataSetName() {
+        return dataSet.getShortName() + " " + dataSet.getName();
     }
 }

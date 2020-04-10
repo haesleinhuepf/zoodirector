@@ -372,7 +372,7 @@ public class ClearControlDataSet {
             currentFrameRangeEnd = frameEnd;
             for (ImagePlus thumbnail : registeredThumbnails) {
                 if (thumbnail.getNFrames() > frameStart) {
-                    thumbnail.setT(frameStart + 1);
+                    thumbnail.setT(frameStart);
                 }
             }
 
