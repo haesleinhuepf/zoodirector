@@ -105,7 +105,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
     private boolean transposeXY = false;
     private Integer spot_count = null;
-    private boolean autoContextClassification = true;
+    private boolean autoContextClassification = false;
 
     public MeshMeasurements setTransposeXY(boolean transposeXY) {
         this.transposeXY = transposeXY;
@@ -1238,6 +1238,7 @@ public class MeshMeasurements extends DataSetMeasurements {
                 ResultsTable table = getAllMeasurements();
 
                 ApplyWekaToTable.applyWekaToTable(clijx, table, "CLASS", clijxweka);
+                table.show("Prediction");
                 float[] classes = table.getColumn(table.getColumnIndex("CLASS"));
                 storeMeasurement("classes", classes);
 
@@ -1516,16 +1517,32 @@ public class MeshMeasurements extends DataSetMeasurements {
 
     CLIJxWeka2 clijxweka = null;
     CLIJxWeka2 clijxwekaAutoContext = null;
-    public void train(float[] ground_truth) {
+    public void train(ResultsTable table, float[] ground_truth) {
 
         {
-            ResultsTable table = getAllMeasurements();
+//            ResultsTable table = getAllMeasurements();
             System.out.println("Use for training: " + Arrays.toString(table.getHeadings()));
-            for (int i = 0; i < table.size(); i++) {
-                table.setValue("CLASS", i, ground_truth[i]);
-            }
-            //table.show("TRAINING");
+  //          for (int i = 0; i < table.size(); i++) {
+    //            table.setValue("CLASS", i, ground_truth[i]);
+      //      }
+            table.show("TRAINING");
             clijxweka = TrainWekaFromTable.trainWekaFromTable(clijx, table, "CLASS", 200, 2, 3);
+
+            ResultsTable otherTable = new ResultsTable();
+            for (int j = 0; j < table.size(); j++) {
+                otherTable.incrementCounter();
+                for (String header : table.getHeadings()) {
+                    if (header.compareTo("CLASS") != 0) {
+                        otherTable.addValue(header, table.getValue(header, j));
+                    }
+                }
+            }
+
+            ApplyWekaToTable.applyWekaToTable(clijx, otherTable, "pCLASS", clijxweka);
+            otherTable.show("Test prediction");
+
+
+
         }
 
         storeMeasurements = true;
@@ -1538,7 +1555,7 @@ public class MeshMeasurements extends DataSetMeasurements {
             //float[] popular_neighbor_classes = getMeasurement("popular_neighbor_classes");
 
 
-            ResultsTable table2 = getAllMeasurements();
+            ResultsTable table2 = table; // getAllMeasurements();
             System.out.println("Use for autocontext training: " + Arrays.toString(table2.getHeadings()));
             for (int i = 0; i < table2.size(); i++) {
               //  table.setValue("prediced_classes", i, ground_truth[i]);

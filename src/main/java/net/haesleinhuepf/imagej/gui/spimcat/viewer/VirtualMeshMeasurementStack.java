@@ -6,6 +6,7 @@ import ij.gui.Roi;
 import ij.gui.TextRoi;
 import ij.plugin.RoiEnlarger;
 import ij.plugin.frame.RoiManager;
+import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
@@ -56,10 +57,25 @@ public class VirtualMeshMeasurementStack extends ij.VirtualStack {
         int slice = (n / channels) % depth;
         int frame = (n / channels / depth) % frames;
 
+        System.out.println("<=CZT " + channelIndex + " " + slice + " " + frame);
+
         //System.out.println("Retrieving " + channelIndex + "/" + slice + "/" + frame);
 
         synchronized (mm) {
             overlay = new Overlay();
+            TextRoi text = new TextRoi(0, 0,
+                    mm.getDataSetName() + "\n" +
+                            availableChannels[channelIndex] + "\n" +
+                            mm.getHumanReadableTime(frame) + "(Frame " + frame + ")\n" +
+                            "Count: " + mm.getSpotCount(),
+                    new Font("Arial", 0, 12)
+            );
+
+            text.setStrokeColor(Color.WHITE);
+            overlay.add(text);
+
+            double textpos = text.getFloatHeight();
+
             if (mm.isTrained()) {
 
                 RoiManager rm = RoiManager.getInstance();
@@ -82,19 +98,52 @@ public class VirtualMeshMeasurementStack extends ij.VirtualStack {
                     for (int i = 0; i < rois.size(); i++) {
                         Roi roi = rois.get(i);
                         roi = RoiEnlarger.enlarge(roi, -1);
-                        roi.setStrokeColor(CLIJxWekaObjectClassification.getColor(i + 1));
+                        ImageStatistics stats = roi.getStatistics();
+                        int roiX = (int) stats.xCentroid;
+                        int roiY = (int) stats.yCentroid;
+                        Color color = CLIJxWekaObjectClassification.getColor(i + 1);
+
+
+                        if (rm != null) {
+                            Roi rmRoi = null;
+                            for (int j = 0; j  <rm.getCount(); j++) {
+                                Roi aRoi = rm.getRoi(j);
+                                String[] temp = aRoi.getName().split(" ");
+                                if (temp.length > 1 && Integer.parseInt(temp[0]) == i + 1) {
+                                    rmRoi = aRoi;
+                                    break;
+                                }
+                            }
+
+                            if (rmRoi != null) {
+                                color = rmRoi.getStrokeColor();
+                                //roi.setName(rm.getRoi(i).getName());
+                                TextRoi textRoi = new TextRoi(roiX, roiY, rmRoi.getName().split(" ")[1]);
+                                textRoi.setStrokeColor(color);
+                                overlay.add(textRoi);
+
+                                text = new TextRoi(0, textpos,
+                                        rmRoi.getName().split(" ")[1],
+                                        new Font("Arial", 0, 12)
+                                );
+                                text.setStrokeColor(color);
+                                overlay.add(text);
+
+                                textpos += text.getFloatHeight();
+                            }
+                        }
+
+
+                        roi.setStrokeColor(color);
                         if (drawOutlines) {
                             overlay.add(roi);
                         }
 
-                        ImageStatistics stats = roi.getStatistics();
                         //stats.
                         //EllipseFitter ef = new EllipseFitter();
                         //ef.fit(viewer.getProcessor(), null);
                         //stats.drawEllipse();
 
-                        int roiX = (int) stats.xCentroid;
-                        int roiY = (int) stats.yCentroid;
                         //int roiWidth = (int) Math.sqrt(stats.area);
                         //int roiHeight = (int) Math.sqrt(stats.area);
 
@@ -102,32 +151,22 @@ public class VirtualMeshMeasurementStack extends ij.VirtualStack {
                         //roi.setStrokeColor(CLIJxWekaObjectClassification.getColor(i + 1));
                         //overlay.add(roi);
 
-                        if (rm != null && rm.getRoi(i) != null) {
-                            //roi.setName(rm.getRoi(i).getName());
-                            TextRoi textRoi = new TextRoi(roiX, roiY, rm.getRoi(i).getName());
-                            textRoi.setStrokeColor(roi.getStrokeColor());
-                            overlay.add(textRoi);
-                        }
+
+
+
 
                     }
                     //viewer.killRoi();
                 }
             }
 
-            TextRoi text = new TextRoi(0, 0,
-                    mm.getDataSetName() + "\n" +
-                            availableChannels[channelIndex] + "\n" +
-                            mm.getHumanReadableTime(frame) + "(Frame " + frame + ")\n" +
-                            "Count: " + mm.getSpotCount(),
-                    new Font("Arial", 0, 12)
-            );
-
-            text.setStrokeColor(Color.WHITE);
-            overlay.add(text);
 
 
 
             ClearCLImageInterface image = mm.getResult(frame, availableChannels[channelIndex]);
+            if (image == null) {
+                return new FloatProcessor(getWidth(), getHeight());
+            }
             ClearCLBuffer imageSlice = clijx.create(image.getWidth(), image.getHeight());
 
             if (image.getDepth() > 0 && image.getDimension() > 2) {

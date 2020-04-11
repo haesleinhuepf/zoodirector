@@ -333,28 +333,77 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         }
 
         synchronized (mm) {
-            mm.setStoreMeasurements(true);
-            mm.invalidate(); // actually not necessary
-            mm.processFrameForRequestedResult(null, null, viewer.getFrame(), "");
+            //mm.setStoreMeasurements(true);
+            //mm.invalidate(); // actually not necessary
+            //mm.processFrameForRequestedResult(null, null, viewer.getFrame(), "");
 
-            ClearCLBuffer clLabelMap = (ClearCLBuffer) mm.getResult(viewer.getFrame(), "07_max_labelled_cells");
+            //ClearCLBuffer clLabelMap = (ClearCLBuffer) mm.getResult(viewer.getFrame(), "07_max_labelled_cells");
             //ClearCLBuffer measurements = (ClearCLBuffer) mm.getResult(viewer.getFrame(), "07_measurements");
             //mm.setStoreMeasurements(false); //
 
-            ResultsTable table = mm.getAllMeasurements(); //new ResultsTable();
+            ResultsTable collection = new ResultsTable();
             //clijx.image2DToResultsTable(measurements, table);
+            String[] availableChannels = mm.getResultIDs();
 
-            for (int i = 0; i < rm.getCount(); i++) {
-                Roi roi = rm.getRoi(i);
-                ArrayList<Integer> labels = getLabelsFromRoi(clijx.pull(clLabelMap), roi);
-
-                for (int label : labels) {
-                    System.out.println("Label " + label + " / " + table.size());
-                    table.setValue("CLASS", label, i + 1);
+            int default_label_volume_channel = -1;
+            int default_label_projection_channel = -1;
+            for (int i = 0; i < availableChannels.length; i++) {
+                if (availableChannels[i].compareTo("VOL_06_LABELLED_CELLS") == 0) {
+                    default_label_volume_channel = i;
+                } else if (availableChannels[i].compareTo("07_max_labelled_cells") == 0) {
+                    default_label_projection_channel =  i;
                 }
             }
 
-            mm.train(table.getColumn(table.getColumnIndex("CLASS")));
+            for (int i = 0; i < rm.getCount(); i++) {
+                Roi roi = rm.getRoi(i);
+
+                int channel = roi.getCPosition() - 1;
+                String selected_channel = availableChannels[channel];
+                System.out.println("Annotation was drawn on " + selected_channel);
+                if (!selected_channel.toLowerCase().contains("labelled")) {
+                    // the selected channel doesn't allow training, let's replace it
+                    if (selected_channel.startsWith("VOL_")) {
+                        // replace it by a volume
+                        channel = default_label_volume_channel;
+                    } else {
+                        channel = default_label_projection_channel;
+                    }
+                }
+                System.out.println("Deriving labels from " + availableChannels[channel]);
+
+                //System.out.println("=>CZT " + roi.getCPosition() + " " + roi.getZPosition() + " " + roi.getTPosition());
+                int position = (channel + 1) +
+                               roi.getZPosition() * viewer.getNChannels()+
+                               roi.getTPosition() * viewer.getNChannels() * viewer.getNSlices();
+                mm.invalidate();
+                mm.setStoreMeasurements(true);
+                mm.processFrameForRequestedResult(null, null, roi.getTPosition(), "");
+                ClearCLBuffer clLabelMap = clijx.push(new ImagePlus("imp", stack.getProcessor(position)));
+                ResultsTable table = mm.getAllMeasurements(); //new ResultsTable();
+                //clijx.show(clLabelMap, "map");
+                ArrayList<Integer> labels = getLabelsFromRoi(clijx.pull(clLabelMap), roi);
+                clLabelMap.close();
+
+                int klass = Integer.parseInt(roi.getName().split(" ")[0]);
+
+                for (int label : labels) {
+                    System.out.println("Label " + label + " / " + table.size());
+                    table.setValue("CLASS", label, klass);
+                }
+
+                for (int j = 0; j < table.size(); j++) {
+                    if (table.getValue("CLASS", j) > 0) {
+                        collection.incrementCounter();
+                        for (String header : table.getHeadings()) {
+                            collection.addValue(header, table.getValue(header, j));
+                        }
+                    }
+                }
+            }
+
+            collection.show("Collection");
+            mm.train(collection, collection.getColumn(collection.getColumnIndex("CLASS")));
 
         }
     }
