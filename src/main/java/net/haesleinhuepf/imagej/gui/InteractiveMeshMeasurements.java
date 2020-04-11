@@ -12,18 +12,16 @@ import ij.process.*;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.clearcl.interfaces.ClearCLImageInterface;
 import net.haesleinhuepf.clijx.CLIJx;
-import net.haesleinhuepf.clijx.weka.CLIJxWeka2;
 import net.haesleinhuepf.clijx.weka.gui.CLIJxWekaObjectClassification;
 import net.haesleinhuepf.clijx.weka.gui.InteractivePanelPlugin;
 import net.haesleinhuepf.imagej.gui.spimcat.viewer.VirtualMeshMeasurementStack;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
-import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
 import net.haesleinhuepf.imagej.zoo.measurement.MeshMeasurements;
 
+import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.geom.RectangularShape;
 import java.util.ArrayList;
 
 public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
@@ -127,13 +125,21 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
 
 
         dataSet.registerImagePlus(viewer);
+
+
+        forceRedraw();
     }
 
     private String[] configureResultIDs(String[] resultIDs) {
         ArrayList<String> list = new ArrayList<String>();
         GenericDialog gd = new GenericDialog("Configure channels");
+        boolean sameRow = true;
         for (String channel : resultIDs) {
-            gd.addCheckbox(channel, true);
+            gd.addCheckbox(channel, !channel.startsWith("VOL_"));
+            if (sameRow) {
+                gd.addToSameRow();
+            }
+            sameRow = !sameRow;
         }
 
         gd.showDialog();
@@ -181,16 +187,16 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
                 double deltaX = e.getX() - mouseStartX;
                 double deltaY = e.getY() - mouseStartY;
 
-                if (e.getButton() == MouseEvent.BUTTON1) {
-                    mm.setTranslationX(translationStartX - deltaX / 5);
-                    mm.setTranslationY(translationStartY + deltaY / 5);
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    mm.setTranslationX(translationStartX - deltaX);
+                    mm.setTranslationY(translationStartY - deltaY);
                 } else {
                     mm.setRotationY(angleStartX - deltaX / 5);
                     mm.setRotationX(angleStartY + deltaY / 5);
                 }
                 mm.invalidateTransformed();
                 formerFrame = -1;
-                refresh();
+                forceRedraw();
                 //System.out.println("Refreshing...");
             }
         }
@@ -211,7 +217,8 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
             @Override
             public void itemStateChanged(ItemEvent e) {
                 viewer.setC(channelPullDown.getSelectedIndex() + 1);
-                refresh();
+
+                //refresh();
             }
         });
 
@@ -230,7 +237,12 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
             btnConfig.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
+                    System.out.println("CONFIG");
                     config();
+                    //formerFrame = -1;
+                    mm.invalidate();
+                    mm.invalidateTraining();
+                    forceRedraw();
                 }
             });
             guiPanel.add(btnConfig);
@@ -241,10 +253,11 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
             btnTrain.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
+                    System.out.println("TRAIN");
                     train();
-                    formerFrame = -1;
+                    //formerFrame = -1;
                     mm.invalidate();
-                    refresh();
+                    forceRedraw();
                 }
             });
             guiPanel.add(btnTrain);
@@ -255,9 +268,11 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
             btnReset.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    formerFrame = -1;
+                    System.out.println("RESET");
+                    //formerFrame = -1;
+                    mm.invalidate();
                     mm.invalidateTraining();
-                    refresh();
+                    forceRedraw();
                 }
             });
             guiPanel.add(btnReset);
@@ -273,7 +288,9 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         gd.addNumericField("Remove background sigma", mm.getBackgroundBlurSigma(), 2);
         gd.addCheckbox("Remove surface cells", mm.isEliminateOnSurfaceCells());
         gd.addCheckbox("Remove sub sufrac cell", mm.isEliminateSubSurfaceCells());
+        gd.addCheckbox("Auto context classification", mm.isAutoContextClassification());
         gd.addCheckbox("Draw text", mm.isDrawText());
+        gd.addCheckbox("Draw clasisfication outlines", stack.isDrawOutlines());
 
         gd.addSlider("Rotation X", -90, 90, mm.getRotationX(), 5);
         gd.addSlider("Rotation Y", -90, 90, mm.getRotationY(), 5);
@@ -292,7 +309,9 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         mm.setBackgroundSubtractionSigma(gd.getNextNumber());
         mm.setEliminateOnSurfaceCells(gd.getNextBoolean());
         mm.setEliminateSubSurfaceCells(gd.getNextBoolean());
+        mm.setAutoContextClassification(gd.getNextBoolean());
         mm.setDrawText(gd.getNextBoolean());
+        stack.setDrawOutlines(gd.getNextBoolean());
 
         mm.setRotationX(gd.getNextNumber());
         mm.setRotationY(gd.getNextNumber());
@@ -302,7 +321,8 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         mm.setTranslationZ(gd.getNextNumber());
 
         mm.invalidate();
-        refresh();
+        mm.invalidateTraining();
+        forceRedraw();
     }
 
     private void train() {
@@ -314,23 +334,27 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
 
         synchronized (mm) {
             mm.setStoreMeasurements(true);
+            mm.invalidate(); // actually not necessary
+            mm.processFrameForRequestedResult(null, null, viewer.getFrame(), "");
+
             ClearCLBuffer clLabelMap = (ClearCLBuffer) mm.getResult(viewer.getFrame(), "07_max_labelled_cells");
-            ClearCLBuffer measurements = (ClearCLBuffer) mm.getResult(viewer.getFrame(), "07_measurements");
+            //ClearCLBuffer measurements = (ClearCLBuffer) mm.getResult(viewer.getFrame(), "07_measurements");
             //mm.setStoreMeasurements(false); //
 
-            ResultsTable table = new ResultsTable();
-            clijx.image2DToResultsTable(measurements, table);
+            ResultsTable table = mm.getAllMeasurements(); //new ResultsTable();
+            //clijx.image2DToResultsTable(measurements, table);
 
             for (int i = 0; i < rm.getCount(); i++) {
                 Roi roi = rm.getRoi(i);
                 ArrayList<Integer> labels = getLabelsFromRoi(clijx.pull(clLabelMap), roi);
 
                 for (int label : labels) {
+                    System.out.println("Label " + label + " / " + table.size());
                     table.setValue("CLASS", label, i + 1);
                 }
             }
 
-            mm.train(table);
+            mm.train(table.getColumn(table.getColumnIndex("CLASS")));
 
         }
     }
@@ -340,37 +364,59 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
 
         FloatPolygon fp = roi.getInterpolatedPolygon(1, false);
         ImageProcessor ip = imp.getProcessor();
-        for (int i = 0; i < fp.npoints; i++) {
-            if (fp.xpoints.length > i && fp.ypoints.length > i) {
+        synchronized (fp) {
+            for (int i = 0; i < fp.npoints; i++) {
+                if (fp.xpoints.length > i && fp.ypoints.length > i) {
 
-                Integer label = (int) ip.getf((int) fp.xpoints[i], (int) fp.ypoints[i]);
-                labels.add(label);
+                    Integer label = (int) ip.getf((int) fp.xpoints[i], (int) fp.ypoints[i]);
+                    labels.add(label);
 
+                }
             }
         }
-
         return labels;
     }
 
 
     boolean refreshing = false;
     int formerFrame = -1;
-    String formerChannel = "";
+    int formerChannel = -1;
     int formerSlice = -1;
+
+    ArrayList<Integer> initializedChannels = new ArrayList<Integer>();
+
+    private void forceRedraw() {
+        double displayMin = viewer.getDisplayRangeMin();
+        double displayMax = viewer.getDisplayRangeMax();
+        LUT lut = viewer.getProcessor().getLut();
+        viewer.setProcessor(stack.getProcessor(viewer.getC() +
+                viewer.getZ() *  viewer.getNChannels() +
+                viewer.getT() * viewer.getNSlices() * viewer.getNChannels()
+                ));
+        viewer.getProcessor().setLut(lut);
+        if (!initializedChannels.contains(viewer.getC())) {
+            IJ.run(viewer, "Enhance Contrast", "saturated=0.35");
+            initializedChannels.add(viewer.getC());
+        } else {
+            viewer.setDisplayRange(displayMin, displayMax);
+        }
+        viewer.setOverlay(stack.getOverlay());
+        viewer.updateAndDraw();
+    }
 
     @Override
     protected synchronized void refresh() {
-        if (refreshing) {
+  /*      if (refreshing) {
             return;
         }
         refreshing = true;
         int frame = viewer.getFrame(); //Integer.parseInt(frameTextField.getText());
-        String channel = channelPullDown.getSelectedItem();
+        int channel = viewer.getChannel();
         int slice = viewer.getSlice() - 1;
 
         System.out.println("Refreshing...");
 
-        if (channel.compareTo(formerChannel) != 0 || frame != formerFrame || formerSlice != slice) {
+        if (channel != formerChannel || frame != formerFrame || formerSlice != slice) {
 
             //stack.setChannel(channel);
             //if (channel.compareTo(formerChannel) != 0) {
@@ -379,17 +425,6 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
             //viewer.setC(viewer.getC());
             //viewer.updateImage();
             //viewer.updateAndDraw();
-            double displayMin = viewer.getDisplayRangeMin();
-            double displayMax = viewer.getDisplayRangeMax();
-            LUT lut = viewer.getProcessor().getLut();
-
-            viewer.setProcessor(stack.getProcessor(viewer.getC() +
-                    viewer.getZ() *  viewer.getNChannels() +
-                    viewer.getT() * viewer.getNSlices() * viewer.getNChannels()
-                    ));
-
-            viewer.getProcessor().setLut(lut);
-            viewer.setDisplayRange(displayMin, displayMax);
             //}
 
             formerChannel = channel;
@@ -401,73 +436,22 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
 
 
 
-
+*/
         super.refresh();
-        refreshing = false;
+        //refreshing = false;
     }
 
     protected void mouseUp(MouseEvent e) {
-        refresh();
+        forceRedraw();
     }
 
     protected void imageChanged() {
-        Overlay overlay = new Overlay();
-        if (mm.isTrained()) {
-            RoiManager rm = RoiManager.getInstance();
-
-            ClearCLBuffer labelmap = (ClearCLBuffer) mm.processFrameForRequestedResult(null, null, mm.getProcessedFrame(), "07_max_labelled_cells_classification");
-            // = (ClearCLBuffer) mm.getResult(mm.getProcessedFrame(), "07_max_labelled_cells_classification");
-            ArrayList<Roi> rois = new ArrayList<Roi>();
-            System.out.println("Labelmap " + labelmap);
-            System.out.println("rois " + rois);
-            clijx.pullLabelsToROIList(labelmap, rois);
-
-            for (int i = 0; i < rois.size(); i++) {
-                Roi roi = rois.get(i);
-
-                roi.setStrokeColor(CLIJxWekaObjectClassification.getColor(i + 1));
-                overlay.add(roi);
-
-
-                //roi = RoiEnlarger.enlarge(roi, -1);
-                viewer.setRoi(roi);
-                ImageStatistics stats = viewer.getStatistics(Measurements.CENTROID, Measurements.AREA);
-                //stats.
-                //EllipseFitter ef = new EllipseFitter();
-                //ef.fit(viewer.getProcessor(), null);
-                //stats.drawEllipse();
-
-                int roiX = (int) stats.xCentroid;
-                int roiY = (int) stats.yCentroid;
-                int roiWidth = (int) Math.sqrt(stats.area);
-                int roiHeight = (int) Math.sqrt(stats.area);
-
-                roi = new OvalRoi(roiX - roiWidth / 2, roiY - roiHeight / 2, roiWidth, roiHeight);
-
-                roi.setStrokeColor(CLIJxWekaObjectClassification.getColor(i + 1));
-                overlay.add(roi);
-
-                if (rm != null && rm.getRoi(i) != null) {
-                    //roi.setName(rm.getRoi(i).getName());
-                    TextRoi textRoi = new TextRoi(roiX, roiY, rm.getRoi(i).getName());
-                    textRoi.setStrokeColor(roi.getStrokeColor());
-                    overlay.add(textRoi);
-                }
-
-            }
-            viewer.killRoi();
+        if (!initializedChannels.contains(viewer.getC())) {
+            initializedChannels.add(viewer.getC());
+            IJ.run(viewer, "Enhance Contrast", "saturated=0.35");
         }
 
-
-        TextRoi text = new TextRoi(0,0,
-                mm.getDataSetName() + "\n" +
-                mm.getResultIDs()[viewer.getChannel() - 1] + "\n" +
-                mm.getHumanReadableTime() + "(Frame " + mm.getProcessedFrame() + ")",
-                new Font("Arial", 0, 12)
-        );
-        text.setStrokeColor(Color.WHITE);
-        overlay.add(text);
-        viewer.setOverlay(overlay);
+        viewer.setOverlay(stack.getOverlay());
     }
 
     public static void main(String[] args) {

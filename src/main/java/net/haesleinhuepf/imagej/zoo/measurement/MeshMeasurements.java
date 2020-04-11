@@ -4,19 +4,16 @@ import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.gui.GenericDialog;
-import ij.gui.WaitForUserDialog;
 import ij.measure.Calibration;
 import ij.measure.ResultsTable;
 import ij.process.ImageProcessor;
 import net.haesleinhuepf.clij.CLIJ;
-import net.haesleinhuepf.clij.clearcl.ClearCL;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.clearcl.ClearCLImage;
 import net.haesleinhuepf.clij.clearcl.ClearCLKernel;
 import net.haesleinhuepf.clij.clearcl.interfaces.ClearCLImageInterface;
-import net.haesleinhuepf.clij2.CLIJ2;
+import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 import net.haesleinhuepf.clij2.converters.helptypes.Float1;
-import net.haesleinhuepf.clij2.plugins.Clear;
 import net.haesleinhuepf.clij2.plugins.OnlyzeroOverwriteMaximumBox;
 import net.haesleinhuepf.clij2.plugins.OnlyzeroOverwriteMaximumDiamond;
 import net.haesleinhuepf.clij2.plugins.StatisticsOfLabelledPixels;
@@ -29,6 +26,8 @@ import net.haesleinhuepf.imagej.clijutils.CLIJxUtils;
 import net.haesleinhuepf.imagej.zoo.ZooUtilities;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
+import net.haesleinhuepf.imagej.zoo.measurement.classification.GenerateClassifiedTouchMatrix;
+import net.haesleinhuepf.imagej.zoo.measurement.classification.MostPopularValueOfTouchingNeighbors;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.scijava.util.VersionUtils;
 
@@ -105,6 +104,8 @@ public class MeshMeasurements extends DataSetMeasurements {
     private boolean storeProjections = true;
 
     private boolean transposeXY = false;
+    private Integer spot_count = null;
+    private boolean autoContextClassification = true;
 
     public MeshMeasurements setTransposeXY(boolean transposeXY) {
         this.transposeXY = transposeXY;
@@ -157,6 +158,16 @@ public class MeshMeasurements extends DataSetMeasurements {
         this.storeMeasurements = storeMeasurements;
         return this;
     }
+
+    public MeshMeasurements setAutoContextClassification(boolean autoContextClassification) {
+        this.autoContextClassification = autoContextClassification;
+        return this;
+    }
+
+    public boolean isAutoContextClassification() {
+        return autoContextClassification;
+    }
+
     HashMap<String, float[]> measurements = new HashMap<>();
     public float[] getMeasurement(String key) {
         return measurements.get(key);
@@ -174,7 +185,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         measurement.writeTo(buffer, true);
 
-        measurements.put(key, array);
+        storeMeasurement(key, array);
     }
 
     private void storeMeasurement(String key, double[]measurement) {
@@ -388,6 +399,9 @@ public class MeshMeasurements extends DataSetMeasurements {
         return this;
     }
 
+    public Integer getSpotCount() {
+        return spot_count;
+    }
 
     @Override
     public void run() {
@@ -453,7 +467,7 @@ public class MeshMeasurements extends DataSetMeasurements {
     }
 
     public ClearCLImageInterface processFrameForRequestedResult(String outputFolder, ResultsTable meshMeasurementTable, int frame, String requested_result) {
-        if (!resultImages.containsKey(requested_result)) {
+        if (requested_result.length() == 0 || !resultImages.containsKey(requested_result)) {
             String targetFilename = "0000000" + frame;
             targetFilename = targetFilename.substring(targetFilename.length() - 6) + ".raw";
 
@@ -470,8 +484,10 @@ public class MeshMeasurements extends DataSetMeasurements {
 
     public void invalidate() {
         processed_frame = -1;
+        spot_count = null;
         clijx.clear();
         resultImages.clear();
+        measurements.clear();
     }
 
     public void invalidateTransformed() {
@@ -497,7 +513,9 @@ public class MeshMeasurements extends DataSetMeasurements {
         if (!resultImages.containsKey(requested_result)) {
             processFrameForRequestedResult(null, null, frame, requested_result);
         }
-
+        if (!resultImages.containsKey(requested_result)) {
+            System.out.println("WAAAAA Couldn't make " + requested_result);
+        }
         return resultImages.get(requested_result);
     }
 
@@ -851,32 +869,43 @@ public class MeshMeasurements extends DataSetMeasurements {
             System.out.println("YES");
 
             ResultsTable table = new ResultsTable();
-            clijx.statisticsOfLabelledPixels(inputImage, segmented_cells, table);
+            clijx.statisticsOfBackgroundAndLabelledPixels(inputImage, segmented_cells, table);
+
+
+            String[] columnsToKeep = new String[]{
+
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_INTENSITY.toString(),
+
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.STANDARD_DEVIATION_INTENSITY.toString(),
+
+                    //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_WIDTH.toString(),
+                    //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_HEIGHT.toString(),
+                    //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_DEPTH.toString(),
+                    //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_X.toString(),
+                    //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Y.toString(),
+                    //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Z.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.PIXEL_COUNT.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MINIMUM_INTENSITY.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAXIMUM_INTENSITY.toString()
+            };
+
             if (table.size() > 0) {
                 System.out.println("YES2");
 
-                String[] columnsToKeep = new String[]{
-                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_INTENSITY.toString(),
-
-                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.STANDARD_DEVIATION_INTENSITY.toString(),
-
-                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_WIDTH.toString(),
-                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_HEIGHT.toString(),
-                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_DEPTH.toString(),
-                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_X.toString(),
-                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Y.toString(),
-                        //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Z.toString(),
-                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.PIXEL_COUNT.toString(),
-                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MINIMUM_INTENSITY.toString(),
-                        StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAXIMUM_INTENSITY.toString()
-                };
                 for (String key : columnsToKeep) {
                     System.out.println("YES3 " + key);
 
                     storeMeasurement(key, table.getColumn(table.getColumnIndex(key)));
                 }
+            } else {
+                for (String key : columnsToKeep) {
+                    System.out.println("YES3 " + key);
+                    storeMeasurement(key, new float[1]);
+                }
             }
+
         }
+        clijx.stopWatch("measurements");
 
         //ClearCLBuffer max_membranes = null;
         //ClearCLBuffer mean_membranes = null;
@@ -917,6 +946,8 @@ public class MeshMeasurements extends DataSetMeasurements {
         if (meshMeasurementTable != null) {
             meshMeasurementTable.addValue("spot_count", number_of_spots);
         }
+
+        this.spot_count = number_of_spots;
 
         if (number_of_spots < 1) {
             // we have to have a non-zero sized stack in the next step...
@@ -1007,6 +1038,21 @@ public class MeshMeasurements extends DataSetMeasurements {
                 }
             }
             storeMeasurement("neighbor_count", neighbor_count_vector);
+            ClearCLBuffer averageNeighborCountOfNeighboringNeighbors1 = meanNeighbours(neighbor_count_vector, touch_matrix);
+            storeMeasurement("average_neighbor_count_of_neighbors1", averageNeighborCountOfNeighboringNeighbors1);
+
+            ClearCLBuffer averageNeighborCountOfNeighboringNeighbors2 = meanNeighbours(averageNeighborCountOfNeighboringNeighbors1, touch_matrix);
+            storeMeasurement("average_neighbor_count_of_neighbors2", averageNeighborCountOfNeighboringNeighbors2);
+
+            ClearCLBuffer averageNeighborCountOfNeighboringNeighbors3 = meanNeighbours(averageNeighborCountOfNeighboringNeighbors2, touch_matrix);
+            storeMeasurement("average_neighbor_count_of_neighbors3", averageNeighborCountOfNeighboringNeighbors3);
+
+
+
+
+
+
+
             if (projection_visualisation_on_screen || projection_visualisation_to_disc) {
                 resultImages.put("19_max_neigh_touch", max_z_projection(neighbor_count));
                 resultImages.put("20_mean_neigh_touch", mean_projection(neighbor_count));
@@ -1045,25 +1091,6 @@ public class MeshMeasurements extends DataSetMeasurements {
         }
         relevantDistances.close();
 
-        // -------------------------------------------------------------------------------------------------------------
-        // draw mesh
-        String key_mesh = "VOL_07_MESH";
-        ClearCLBuffer mesh = (ClearCLBuffer) resultImages.get("VOL_07_MESH");
-        if (mesh == null) {
-            mesh = clijx.create(inputImage);
-            mesh.setName("mesh");
-            clijx.touchMatrixToMesh(pointlist, touch_matrix, mesh);
-
-            resultImages.put(key_mesh, mesh);
-            clijx.stopWatch("mesh");
-        }
-
-        //////////////////////////////////////////////////////
-        // if we have what we were looking for, leave       //
-        if (resultImages.containsKey(requested_result)) {   //
-            return;                                         //
-        }                                                   //
-        //////////////////////////////////////////////////////
 
         // -------------------------------------------------------------------------------------------------------------
         String key_avg_neighbor_distance = "VOL_08_AVG_DISTANCE_TO_NEIGHBORS";
@@ -1072,6 +1099,17 @@ public class MeshMeasurements extends DataSetMeasurements {
         if (average_distance_of_touching_neighbors == null) {
             average_distance_of_touching_neighbors = generateParametricImage(distance_vector, segmented_cells);
             storeMeasurement("average_distance", distance_vector);
+
+            ClearCLBuffer averageDistanceOfNeihboringNeighbors1 = meanNeighbours(distance_vector, touch_matrix);
+            storeMeasurement("average_distance_of_neighbors1", averageDistanceOfNeihboringNeighbors1);
+
+            ClearCLBuffer averageDistanceOfNeihboringNeighbors2 = meanNeighbours(averageDistanceOfNeihboringNeighbors1, touch_matrix);
+            storeMeasurement("average_distance_of_neighbors2", averageDistanceOfNeihboringNeighbors2);
+
+            ClearCLBuffer averageDistanceOfNeihboringNeighbors3 = meanNeighbours(averageDistanceOfNeihboringNeighbors2, touch_matrix);
+            storeMeasurement("average_distance_of_neighbors3", averageDistanceOfNeihboringNeighbors3);
+
+
         }
         resultImages.put(key_avg_neighbor_distance, average_distance_of_touching_neighbors);
 
@@ -1170,6 +1208,7 @@ public class MeshMeasurements extends DataSetMeasurements {
             ClearCLBuffer measurementsImage = (ClearCLBuffer) resultImages.get(key_measurements);
             if (measurementsImage == null) {
                 ResultsTable table = getAllMeasurements();
+                System.out.println("Measurements: " + Arrays.toString(table.getHeadings()));
                 measurementsImage = clijx.create(table.getHeadings().length, table.size());
                 clijx.resultsTableToImage2D(measurementsImage, table);
                 if (outputFolder != null) {
@@ -1184,20 +1223,25 @@ public class MeshMeasurements extends DataSetMeasurements {
         // -------------------------------------------------------------------------------------------------------------
         // classification
         String key_label_classification = "VOL_02_label_classification";
-        ClearCLBuffer label_classification = (ClearCLBuffer) resultImages.get(key_label_classification);
 
+        ClearCLBuffer classification = null;
+        ClearCLBuffer classification_auto_context = null;
+
+        ClearCLBuffer label_classification = (ClearCLBuffer) resultImages.get(key_label_classification);
         if (label_classification == null) {
             if (clijxweka != null && storeMeasurements) {
                 System.out.println("PREDICTING");
 
-                ClearCLBuffer measurementsImage = (ClearCLBuffer) resultImages.get(key_measurements);
-                ResultsTable table = new ResultsTable();
-                clijx.image2DToResultsTable(measurementsImage, table);
+//                ClearCLBuffer measurementsImage = (ClearCLBuffer) resultImages.get(key_measurements);
+  //              ResultsTable table = new ResultsTable();
+       //         clijx.image2DToResultsTable(measurementsImage, table);
+                ResultsTable table = getAllMeasurements();
 
                 ApplyWekaToTable.applyWekaToTable(clijx, table, "CLASS", clijxweka);
                 float[] classes = table.getColumn(table.getColumnIndex("CLASS"));
+                storeMeasurement("classes", classes);
 
-                ClearCLBuffer classification = clijx.push(new Float1(classes));
+                classification = clijx.push(new Float1(classes));
                 //clijx.print(classification);
                 label_classification = generateParametricImage(classification, segmented_cells);
                 //clijx.show(label_classification, "label_classification");
@@ -1209,10 +1253,49 @@ public class MeshMeasurements extends DataSetMeasurements {
                 } else {
                     resultImages.put("07_max_labelled_cells_classification", max_z_projection(label_classification));
                 }
+
+                if (autoContextClassification) {
+
+                    ClearCLBuffer popularClassificationOfNeighbors = clijx.create(classification);
+                    MostPopularValueOfTouchingNeighbors.mostPopularValueOfTouchingNeighbors(clijx, classification, touch_matrix, popularClassificationOfNeighbors);
+
+                    // store intermediate results
+                    storeMeasurement("popular_neighbor_classes", popularClassificationOfNeighbors);
+                    resultImages.put("07_max_popular_labels_among_neighbors", generateParametricImage(popularClassificationOfNeighbors, labels_max));
+
+                    if (clijxwekaAutoContext != null) {
+                        String key_classes_autocontext = "07_classification_autocontext";
+                        ClearCLBuffer label_classification_auto_context = (ClearCLBuffer) resultImages.get(key_classes_autocontext);
+                        if (label_classification_auto_context == null) {
+
+                            ResultsTable table2 = getAllMeasurements();
+                            ApplyWekaToTable.applyWekaToTable(clijx, table2, "CLASS", clijxwekaAutoContext);
+                            float[] classesAutoContext = table2.getColumn(table2.getColumnIndex("CLASS"));
+                            storeMeasurement("classes_auto_context", classesAutoContext);
+
+                            classification_auto_context = clijx.push(new Float1(classesAutoContext));
+                            //clijx.print(classification);
+                            label_classification_auto_context = generateParametricImage(classification_auto_context, segmented_cells);
+                            resultImages.put(key_classes_autocontext, label_classification_auto_context);
+                            //clijx.show(label_classification, "label_classification");
+
+                            if (labels_max != null) {
+                                ClearCLBuffer labels_max_classification = generateParametricImage(classification_auto_context, labels_max);
+                                resultImages.put("07_max_labelled_cells_classification_autocontext", labels_max_classification);
+                            } else {
+                                resultImages.put("07_max_labelled_cells_classification_autocontext", max_z_projection(label_classification));
+                            }
+                        }
+                    }
+                }
             } else {
                 label_classification = clijx.create(segmented_cells.getDimensions(), clijx.UnsignedByte);
                 clijx.set(label_classification, 0);
                 resultImages.put("07_max_labelled_cells_classification", max_z_projection(label_classification));
+                if (autoContextClassification) {
+                    resultImages.put("07_max_popular_labels_among_neighbors", max_z_projection(label_classification));
+                    resultImages.put("07_max_labelled_cells_classification_autocontext", max_z_projection(label_classification));
+                }
             }
             resultImages.put(key_label_classification, label_classification);
             resultImages.put("02_nonzero_min_label_classification", nonzero_min_projection(label_classification));
@@ -1220,6 +1303,50 @@ public class MeshMeasurements extends DataSetMeasurements {
             resultImages.put("02_max_label_classification", max_z_projection(label_classification));
         }
         // -------------------------------------------------------------------------------------------------------------
+
+
+        // -------------------------------------------------------------------------------------------------------------
+        // draw mesh
+        String key_mesh = "VOL_12_MESH";
+        ClearCLBuffer mesh = (ClearCLBuffer) resultImages.get(key_mesh);
+        if (mesh == null) {
+            mesh = clijx.create(inputImage);
+            mesh.setName("mesh");
+
+            if (classification_auto_context != null && autoContextClassification) {
+                ClearCLBuffer classifiedTouchMatrix = clijx.create(touch_matrix);
+                GenerateClassifiedTouchMatrix.generateClassifiedTouchMatrix(clijx, segmented_cells, classification_auto_context, classifiedTouchMatrix);
+                clijx.touchMatrixToMesh(pointlist, classifiedTouchMatrix, mesh);
+                classifiedTouchMatrix.close();
+            } else if (classification != null) {
+                ClearCLBuffer classifiedTouchMatrix = clijx.create(touch_matrix);
+                GenerateClassifiedTouchMatrix.generateClassifiedTouchMatrix(clijx, segmented_cells, classification, classifiedTouchMatrix);
+                clijx.touchMatrixToMesh(pointlist, classifiedTouchMatrix, mesh);
+                classifiedTouchMatrix.close();
+            } else {
+                clijx.touchMatrixToMesh(pointlist, touch_matrix, mesh);
+            }
+            resultImages.put(key_mesh, mesh);
+            clijx.stopWatch("mesh");
+
+            // distance mesh
+            ClearCLBuffer distanceMesh = clijx.create(mesh);
+            ClearCLBuffer touch_distance_matrix = clijx.create(touch_matrix);
+            clijx.multiplyImages(touch_matrix, distance_matrix, touch_distance_matrix);
+            clijx.touchMatrixToMesh(pointlist, touch_distance_matrix, distanceMesh);
+            touch_distance_matrix.close();
+            resultImages.put("VOL_12_DISTANCE_MESH", distanceMesh);
+            resultImages.put("12_max_DISTANCE_MESH", max_z_projection(distanceMesh));
+        }
+        clijx.release(classification_auto_context);
+        clijx.release(classification);
+
+        //////////////////////////////////////////////////////
+        // if we have what we were looking for, leave       //
+        if (resultImages.containsKey(requested_result)) {   //
+            return;                                         //
+        }                                                   //
+        //////////////////////////////////////////////////////
 
         if (projection_visualisation_on_screen || projection_visualisation_to_disc || storeProjections) {
 
@@ -1374,6 +1501,12 @@ public class MeshMeasurements extends DataSetMeasurements {
         }
     }
 
+    private ClearCLBuffer meanNeighbours(ClearCLBuffer distance_vector, ClearCLBuffer touch_matrix) {
+        ClearCLBuffer result = clijx.create(distance_vector);
+        clijx.meanOfTouchingNeighbors(distance_vector, touch_matrix, result);
+        return result;
+    }
+
     private ClearCLBuffer transposeImageXY(ClearCLBuffer pushedImage) {
         ClearCLBuffer result = clijx.create(new long[]{pushedImage.getHeight(), pushedImage.getWidth(), pushedImage.getDepth()}, pushedImage.getNativeType());
         clijx.transposeXY(pushedImage, result);
@@ -1382,13 +1515,44 @@ public class MeshMeasurements extends DataSetMeasurements {
     }
 
     CLIJxWeka2 clijxweka = null;
-    public void train(ResultsTable table) {
-        clijxweka = TrainWekaFromTable.trainWekaFromTable(clijx, table, "CLASS", 200, 2, 3);
+    CLIJxWeka2 clijxwekaAutoContext = null;
+    public void train(float[] ground_truth) {
+
+        {
+            ResultsTable table = getAllMeasurements();
+            System.out.println("Use for training: " + Arrays.toString(table.getHeadings()));
+            for (int i = 0; i < table.size(); i++) {
+                table.setValue("CLASS", i, ground_truth[i]);
+            }
+            //table.show("TRAINING");
+            clijxweka = TrainWekaFromTable.trainWekaFromTable(clijx, table, "CLASS", 200, 2, 3);
+        }
+
         storeMeasurements = true;
+        if (autoContextClassification) {
+            int frame = processed_frame;
+            invalidate();
+            processFrameForRequestedResult(null, null, frame, "");
+
+            //float[] prediced_classes = getMeasurement("classes");
+            //float[] popular_neighbor_classes = getMeasurement("popular_neighbor_classes");
+
+
+            ResultsTable table2 = getAllMeasurements();
+            System.out.println("Use for autocontext training: " + Arrays.toString(table2.getHeadings()));
+            for (int i = 0; i < table2.size(); i++) {
+              //  table.setValue("prediced_classes", i, ground_truth[i]);
+                //table.setValue("popular_neighbor_classes", i, ground_truth[i]);
+                table2.setValue("CLASS", i, ground_truth[i]);
+            }
+            //table2.show("TRAINING Autocontext");
+            clijxwekaAutoContext = TrainWekaFromTable.trainWekaFromTable(clijx, table2, "CLASS", 200, 2, 3);
+        }
     }
 
     public void invalidateTraining(){
         clijxweka = null;
+        clijxwekaAutoContext = null;
         invalidate();
     }
 
@@ -1808,9 +1972,9 @@ public class MeshMeasurements extends DataSetMeasurements {
         return this;
     }
 
-    public String getHumanReadableTime() {
+    public String getHumanReadableTime(int frame) {
         Duration duration = Duration.ofSeconds((int)dataSet.getTimesInSeconds()
-                [processed_frame]); // in milliseconds
+                [frame]); // in milliseconds
         return duration.toString()
                 .substring(2)
                 .replaceAll("(\\d[HMS])(?!$)", "$1 ")
