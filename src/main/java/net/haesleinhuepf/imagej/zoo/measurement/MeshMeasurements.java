@@ -630,7 +630,7 @@ public class MeshMeasurements extends DataSetMeasurements {
             long h = (long) (pushedImage.getHeight() * factorY);
             long d = (long) (pushedImage.getDepth() * factorZ);
 
-            System.out.println(new long[]{w, h, d});
+            System.out.println("w/h/d " + w + "/" + h + "/" + d);
 
             long[] size = new long[]{w, h, d};
             //size = padSize(size);
@@ -881,14 +881,15 @@ public class MeshMeasurements extends DataSetMeasurements {
                     //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_WIDTH.toString(),
                     //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_HEIGHT.toString(),
                     //StatisticsOfLabelledPixels.STATISTICS_ENTRY.BOUNDING_BOX_DEPTH.toString(),
-                    //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_X.toString(),
-                    //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Y.toString(),
-                    //StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Z.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_X.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Y.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Z.toString(),
                     StatisticsOfLabelledPixels.STATISTICS_ENTRY.PIXEL_COUNT.toString(),
                     StatisticsOfLabelledPixels.STATISTICS_ENTRY.MINIMUM_INTENSITY.toString(),
                     StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAXIMUM_INTENSITY.toString()
             };
 
+            int num_measurements = table.size();
             if (table.size() > 0) {
                 System.out.println("YES2");
 
@@ -902,7 +903,15 @@ public class MeshMeasurements extends DataSetMeasurements {
                     System.out.println("YES3 " + key);
                     storeMeasurement(key, new float[1]);
                 }
+                num_measurements = 1;
             }
+
+            float[] times = new float[num_measurements];
+            float time_in_seconds = (float) dataSet.getTimesInSeconds()[frame];
+            for (int i = 0; i < times.length; i++) {
+                times[i] = time_in_seconds;
+            }
+            storeMeasurement("TIME_IN_SECONDS", new float[1]);
 
         }
         clijx.stopWatch("measurements");
@@ -1238,7 +1247,7 @@ public class MeshMeasurements extends DataSetMeasurements {
                 ResultsTable table = getAllMeasurements();
 
                 ApplyWekaToTable.applyWekaToTable(clijx, table, "CLASS", clijxweka);
-                table.show("Prediction");
+                //table.show("Prediction");
                 float[] classes = table.getColumn(table.getColumnIndex("CLASS"));
                 storeMeasurement("classes", classes);
 
@@ -1525,9 +1534,9 @@ public class MeshMeasurements extends DataSetMeasurements {
   //          for (int i = 0; i < table.size(); i++) {
     //            table.setValue("CLASS", i, ground_truth[i]);
       //      }
-            table.show("TRAINING");
+        //    table.show("TRAINING");
             clijxweka = TrainWekaFromTable.trainWekaFromTable(clijx, table, "CLASS", 200, 2, 3);
-
+/*
             ResultsTable otherTable = new ResultsTable();
             for (int j = 0; j < table.size(); j++) {
                 otherTable.incrementCounter();
@@ -1539,7 +1548,7 @@ public class MeshMeasurements extends DataSetMeasurements {
             }
 
             ApplyWekaToTable.applyWekaToTable(clijx, otherTable, "pCLASS", clijxweka);
-            otherTable.show("Test prediction");
+            otherTable.show("Test prediction");*/
 
 
 

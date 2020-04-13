@@ -47,9 +47,9 @@ public class VirtualMeshMeasurementStack extends ij.VirtualStack {
 
     @Override
     public ImageProcessor getProcessor(int n) {
+        System.out.println("Retrieving " + n);
         n--;
 
-        //System.out.println("Retrieving " + n);
 
         //VirtualStack
 
@@ -79,13 +79,12 @@ public class VirtualMeshMeasurementStack extends ij.VirtualStack {
             if (mm.isTrained()) {
 
                 RoiManager rm = RoiManager.getInstance();
-
-                mm.processFrameForRequestedResult(null, null, mm.getProcessedFrame(), "");
+                mm.getResult(frame, "");
                 ClearCLBuffer labelmap = null;
                 if (!mm.isAutoContextClassification()) {
-                    labelmap = (ClearCLBuffer) mm.getResult(mm.getProcessedFrame(), "07_max_labelled_cells_classification");
+                    labelmap = (ClearCLBuffer) mm.getResult(frame, "07_max_labelled_cells_classification");
                 } else {
-                    labelmap = (ClearCLBuffer) mm.getResult(mm.getProcessedFrame(), "07_max_labelled_cells_classification_autocontext");
+                    labelmap = (ClearCLBuffer) mm.getResult(frame, "07_max_labelled_cells_classification_autocontext");
                 }
                 if (labelmap == null) {
                     System.out.println("Error: No labelmap found!");
@@ -117,10 +116,12 @@ public class VirtualMeshMeasurementStack extends ij.VirtualStack {
 
                             if (rmRoi != null) {
                                 color = rmRoi.getStrokeColor();
-                                //roi.setName(rm.getRoi(i).getName());
-                                TextRoi textRoi = new TextRoi(roiX, roiY, rmRoi.getName().split(" ")[1]);
-                                textRoi.setStrokeColor(color);
-                                overlay.add(textRoi);
+                                if (mm.isDrawText()) {
+                                    //roi.setName(rm.getRoi(i).getName());
+                                    TextRoi textRoi = new TextRoi(roiX, roiY, rmRoi.getName().split(" ")[1]);
+                                    textRoi.setStrokeColor(color);
+                                    overlay.add(textRoi);
+                                }
 
                                 text = new TextRoi(0, textpos,
                                         rmRoi.getName().split(" ")[1],

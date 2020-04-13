@@ -2,16 +2,15 @@ package net.haesleinhuepf.imagej.gui;
 
 import ij.*;
 import ij.gui.*;
-import ij.measure.Measurements;
 import ij.measure.ResultsTable;
 import ij.plugin.HyperStackConverter;
-import ij.plugin.RoiEnlarger;
 import ij.plugin.frame.RoiManager;
 import ij.plugin.tool.PlugInTool;
 import ij.process.*;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.clearcl.interfaces.ClearCLImageInterface;
 import net.haesleinhuepf.clijx.CLIJx;
+import net.haesleinhuepf.clijx.gui.Utilities;
 import net.haesleinhuepf.clijx.weka.gui.CLIJxWekaObjectClassification;
 import net.haesleinhuepf.clijx.weka.gui.InteractivePanelPlugin;
 import net.haesleinhuepf.imagej.gui.spimcat.viewer.VirtualMeshMeasurementStack;
@@ -25,11 +24,16 @@ import java.awt.event.*;
 import java.util.ArrayList;
 
 public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
+    // Backend
     VirtualMeshMeasurementStack stack;
-    MeshMeasurements mm;
-    ImagePlus viewer;
-
     CLIJx clijx;
+    MeshMeasurements mm;
+
+    // Frontend
+    ImagePlus viewer;
+    String[] annotatableClasses = new String[]{"Serosa","Embryo"};
+    Choice channelPullDown;
+    private Choice annotationPulldown;
 
     public InteractiveMeshMeasurements(ClearControlDataSet dataSet) {
         clijx = CLIJx.getInstance();
@@ -43,7 +47,7 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         mm.setNumberDoubleErosionsForPseudoCellSegmentation(4);
         mm.setNumberDoubleDilationsForPseudoCellSegmentation(12);
 
-        mm.setTransposeXY(true);
+        mm.setTransposeXY(false);
         mm.setStoreMeasurements(true);
         mm.setProjectionVisualisationOnScreen(false);
         mm.setThreshold(300);
@@ -90,7 +94,10 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         attach(viewer.getWindow());
         imp.setDisplayMode(IJ.GRAYSCALE);
 
-        Toolbar.addPlugInTool(new MouseHandler());
+        String tool = IJ.getToolName();
+        Toolbar.addPlugInTool(new AnnotationMouseHandler());
+        Toolbar.addPlugInTool(new TipTiltMouseHandler());
+        IJ.setTool(tool);
 
         viewer.getWindow().getCanvas().disablePopupMenu(true);
 
@@ -126,16 +133,20 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
 
         dataSet.registerImagePlus(viewer);
 
-
         forceRedraw();
+        initializedChannels.clear();
     }
+
 
     private String[] configureResultIDs(String[] resultIDs) {
         ArrayList<String> list = new ArrayList<String>();
         GenericDialog gd = new GenericDialog("Configure channels");
         boolean sameRow = true;
         for (String channel : resultIDs) {
-            gd.addCheckbox(channel, !channel.startsWith("VOL_"));
+            gd.addCheckbox(channel, (!channel.startsWith("VOL_")) ||
+                            channel.compareTo("VOL_03_TRANSFORMED_INPUT") == 0 ||
+                            channel.compareTo("VOL_06_LABELLED_CELLS") == 0
+                   );
             if (sameRow) {
                 gd.addToSameRow();
             }
@@ -157,9 +168,94 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         return array;
     }
 
-    private class MouseHandler extends PlugInTool {
+    private class AnnotationMouseHandler extends PlugInTool {
+        PolygonRoi line = null;
 
-        public MouseHandler(){}
+        @Override
+        public void mousePressed(ImagePlus imp, MouseEvent e) {
+            int x = e.getX();
+            int y = e.getY();
+            line = new PolygonRoi(new float[]{x}, new float[]{y}, Roi.FREELINE);
+            imp.setRoi(line);
+        }
+
+        @Override
+        public void mouseDragged(ImagePlus imp, MouseEvent e) {
+            FloatPolygon floatPolygon = line.getFloatPolygon();
+
+            float[] xes = new float[floatPolygon.xpoints.length + 1];
+            float[] yes = new float[floatPolygon.ypoints.length + 1];
+
+            System.arraycopy(floatPolygon.xpoints, 0, xes, 0, floatPolygon.xpoints.length);
+            System.arraycopy(floatPolygon.ypoints, 0, yes, 0, floatPolygon.ypoints.length);
+
+            xes[xes.length - 1] = e.getX();
+            yes[yes.length - 1] = e.getY();
+
+            FloatPolygon newPolygon = new FloatPolygon(xes, yes);
+            line = new PolygonRoi(newPolygon, Roi.FREELINE);
+            imp.setRoi(line);
+        }
+
+        @Override
+        public void mouseReleased(ImagePlus imp, MouseEvent e) {
+            if (line == null) {
+                return;
+            }
+            int classID = annotationPulldown.getSelectedIndex() + 1;
+            line.setName("" + classID + " " + annotationPulldown.getSelectedItem());
+            line.setStrokeColor(CLIJxWekaObjectClassification.getColor(classID));
+
+            RoiManager rm = RoiManager.getInstance();
+            if (rm == null) {
+                rm = new RoiManager();
+            }
+            rm.addRoi(line);
+            line = null;
+        }
+
+
+        @Override
+        public String getToolName() {
+            return "SPIMcat Annotations";
+        }
+
+        @Override
+        public String getToolIcon()
+        {
+            return Utilities.generateIconCodeString(
+                    getToolIconString()
+            );
+
+        }
+
+        public String getToolIconString()
+        {
+            return
+                    //        0123456789ABCDEF
+                    /*0*/	 "#        #####  " +
+                    /*1*/	 " #      #     # " +
+                    /*2*/	 "  ##     #     #" +
+                    /*3*/	 "    #####      #" +
+                    /*4*/	 "              # " +
+                    /*5*/	 "        ######  " +
+                    /*6*/	 "       #        " +
+                    /*7*/	 "      #    ##   " +
+                    /*8*/	 "     #    #  #  " +
+                    /*9*/	 "     #    #  #  " +
+                    /*A*/	 "     #   #    # " +
+                    /*B*/	 "         ###### " +
+                    /*C*/	 "         #    # " +
+                    /*D*/	 "        #      #" +
+                    /*E*/	 "        #      #" +
+                    /*F*/	 "        #      #" ;
+        }
+
+    }
+
+    private class TipTiltMouseHandler extends PlugInTool {
+
+        public TipTiltMouseHandler(){}
 
         double mouseStartX;
         double mouseStartY;
@@ -201,13 +297,52 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
             }
         }
 
+        @Override
+        public String getToolName() {
+            return "SPIMcat Tip/tilt";
+        }
+
+        @Override
+        public String getToolIcon()
+        {
+            return Utilities.generateIconCodeString(
+                    getToolIconString()
+            );
+
+        }
+
+        public String getToolIconString()
+        {
+            return
+                    //        0123456789ABCDEF
+                    /*0*/	 "####  ####      " +
+                    /*1*/	 "##      ##      " +
+                    /*2*/	 "# #    # #      " +
+                    /*3*/	 "#  #  #  #      " +
+                    /*4*/	 "    ##          " +
+                    /*5*/	 "    ##          " +
+                    /*6*/	 "#  #  #  #      " +
+                    /*7*/	 "# #    # #      " +
+                    /*8*/	 "##      ##  ####" +
+                    /*9*/	 "####  ####  ##  " +
+                    /*A*/	 "            # # " +
+                    /*B*/	 "            #  #" +
+                    /*C*/	 "        ####   #" +
+                    /*D*/	 "        ##     #" +
+                    /*E*/	 "        # #   # " +
+                    /*F*/	 "        #  ###  " ;
+        }
     }
 
-    Choice channelPullDown;
-    TextField frameTextField;
     private void buildGUI() {
+        panelHeight = 60;
 
-        guiPanel.add(new Label("Channel"));
+        //Panel panel = new Panel();
+        guiPanel.setLayout(new FlowLayout());
+
+
+
+        guiPanel.add(new Label("C"));
 
         channelPullDown = new Choice();
         for (String channelName : mm.getResultIDs()) {
@@ -231,6 +366,7 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
 
  */
         guiPanel.add(channelPullDown);
+        channelPullDown.setSize(200, channelPullDown.getHeight());
 
         {
             Button btnConfig = new Button("Config");
@@ -247,6 +383,16 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
             });
             guiPanel.add(btnConfig);
         }
+
+        annotationPulldown = new Choice();
+        annotationPulldown.addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+                Toolbar.addPlugInTool(new AnnotationMouseHandler());
+            }
+        });
+        fillPulldown(annotationPulldown, annotatableClasses);
+        guiPanel.add(annotationPulldown);
 
         {
             Button btnTrain = new Button("Train");
@@ -280,6 +426,13 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
 
     }
 
+    private void fillPulldown(Choice pulldown, String[] content) {
+        pulldown.removeAll();
+        for (String entry : content) {
+            pulldown.add(entry);
+        }
+    }
+
     private void config() {
         GenericDialog gd = new GenericDialog("SPIMcat viewer");
 
@@ -288,9 +441,10 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         gd.addNumericField("Remove background sigma", mm.getBackgroundBlurSigma(), 2);
         gd.addCheckbox("Remove surface cells", mm.isEliminateOnSurfaceCells());
         gd.addCheckbox("Remove sub sufrac cell", mm.isEliminateSubSurfaceCells());
-        gd.addCheckbox("Auto context classification", mm.isAutoContextClassification());
+        //gd.addCheckbox("Auto context classification", mm.isAutoContextClassification());
         gd.addCheckbox("Draw text", mm.isDrawText());
-        gd.addCheckbox("Draw clasisfication outlines", stack.isDrawOutlines());
+        gd.addCheckbox("Draw classification outlines", stack.isDrawOutlines());
+//        gd.addCheckbox("Auto brightness contrast", autoBrightNessContrast);
 
         gd.addSlider("Rotation X", -90, 90, mm.getRotationX(), 5);
         gd.addSlider("Rotation Y", -90, 90, mm.getRotationY(), 5);
@@ -298,6 +452,11 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         gd.addSlider("Translation X", -256, 256, mm.getTranslationX(), 32);
         gd.addSlider("Translation Y", -256, 256, mm.getTranslationY(), 32);
         gd.addSlider("Translation Z", -256, 256, mm.getTranslationZ(), 32);
+
+
+        gd.addStringField("Annotations (comma separated):", String.join(", ", annotatableClasses));
+
+        gd.addCheckbox("Invalidate everything, when clicking Ok.", true);
 
         gd.showDialog();
         if (gd.wasCanceled()) {
@@ -309,9 +468,10 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         mm.setBackgroundSubtractionSigma(gd.getNextNumber());
         mm.setEliminateOnSurfaceCells(gd.getNextBoolean());
         mm.setEliminateSubSurfaceCells(gd.getNextBoolean());
-        mm.setAutoContextClassification(gd.getNextBoolean());
+        //mm.setAutoContextClassification(gd.getNextBoolean());
         mm.setDrawText(gd.getNextBoolean());
         stack.setDrawOutlines(gd.getNextBoolean());
+  //      autoBrightNessContrast = gd.getNextBoolean();
 
         mm.setRotationX(gd.getNextNumber());
         mm.setRotationY(gd.getNextNumber());
@@ -320,8 +480,17 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         mm.setTranslationY(gd.getNextNumber());
         mm.setTranslationZ(gd.getNextNumber());
 
-        mm.invalidate();
-        mm.invalidateTraining();
+        String enteredClasses = gd.getNextString();
+        annotatableClasses = enteredClasses.split(",");
+        for (int i = 0; i < annotatableClasses.length; i++) {
+            annotatableClasses[i] = annotatableClasses[i].trim();
+        }
+        fillPulldown(annotationPulldown, annotatableClasses);
+
+        if (gd.getNextBoolean()) {
+            mm.invalidate();
+            mm.invalidateTraining();
+        }
         forceRedraw();
     }
 
@@ -402,25 +571,27 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
                 }
             }
 
-            collection.show("Collection");
+            //collection.show("Collection");
             mm.train(collection, collection.getColumn(collection.getColumnIndex("CLASS")));
 
         }
+        forceRedraw();
     }
 
     private ArrayList<Integer> getLabelsFromRoi(ImagePlus imp, Roi roi) {
         ArrayList<Integer> labels = new ArrayList<Integer>();
 
         FloatPolygon fp = roi.getInterpolatedPolygon(1, false);
+        float[] xpoints = new float[fp.xpoints.length];
+        System.arraycopy(fp.xpoints, 0, xpoints, 0, fp.xpoints.length);
+        float[] ypoints = new float[fp.ypoints.length];
+        System.arraycopy(fp.ypoints, 0, ypoints, 0, fp.ypoints.length);
+
         ImageProcessor ip = imp.getProcessor();
         synchronized (fp) {
-            for (int i = 0; i < fp.npoints; i++) {
-                if (fp.xpoints.length > i && fp.ypoints.length > i) {
-
-                    Integer label = (int) ip.getf((int) fp.xpoints[i], (int) fp.ypoints[i]);
-                    labels.add(label);
-
-                }
+            for (int i = 0; i < xpoints.length && i < ypoints.length; i++) {
+                Integer label = (int) ip.getf((int) fp.xpoints[i], (int) fp.ypoints[i]);
+                labels.add(label);
             }
         }
         return labels;
@@ -435,22 +606,32 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
     ArrayList<Integer> initializedChannels = new ArrayList<Integer>();
 
     private void forceRedraw() {
-        double displayMin = viewer.getDisplayRangeMin();
-        double displayMax = viewer.getDisplayRangeMax();
-        LUT lut = viewer.getProcessor().getLut();
-        viewer.setProcessor(stack.getProcessor(viewer.getC() +
-                viewer.getZ() *  viewer.getNChannels() +
-                viewer.getT() * viewer.getNSlices() * viewer.getNChannels()
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                double displayMin = viewer.getDisplayRangeMin();
+                double displayMax = viewer.getDisplayRangeMax();
+                LUT lut = viewer.getProcessor().getLut();
+                viewer.setProcessor(stack.getProcessor(viewer.getC() +
+                        viewer.getSlice() *  viewer.getNChannels() +
+                        viewer.getFrame() * viewer.getNSlices() * viewer.getNChannels()
                 ));
-        viewer.getProcessor().setLut(lut);
-        if (!initializedChannels.contains(viewer.getC())) {
-            IJ.run(viewer, "Enhance Contrast", "saturated=0.35");
-            initializedChannels.add(viewer.getC());
-        } else {
-            viewer.setDisplayRange(displayMin, displayMax);
-        }
-        viewer.setOverlay(stack.getOverlay());
-        viewer.updateAndDraw();
+                viewer.getProcessor().setLut(lut);
+                if (!initializedChannels.contains(viewer.getC())) {
+                    initializedChannels.add(viewer.getC());
+                    IJ.run(viewer, "Enhance Contrast", "saturated=0.35");
+                } else {
+                    viewer.setDisplayRange(displayMin, displayMax);
+                }
+                viewer.setOverlay(stack.getOverlay());
+                viewer.updateAndDraw();
+            }
+        });
     }
 
     @Override
@@ -494,13 +675,22 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         forceRedraw();
     }
 
+    boolean repeat = false;
     protected void imageChanged() {
+        if (repeat) {
+            return;
+        }
+        repeat = true;
         if (!initializedChannels.contains(viewer.getC())) {
             initializedChannels.add(viewer.getC());
             IJ.run(viewer, "Enhance Contrast", "saturated=0.35");
         }
+        //if (autoBrightNessContrast) {
+        //    IJ.run(viewer, "Enhance Contrast", "saturated=0.35");
+        //}
 
         viewer.setOverlay(stack.getOverlay());
+        repeat = false;
     }
 
     public static void main(String[] args) {
