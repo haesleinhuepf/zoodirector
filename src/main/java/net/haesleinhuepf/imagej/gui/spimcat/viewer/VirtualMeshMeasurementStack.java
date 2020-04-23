@@ -38,6 +38,7 @@ public class VirtualMeshMeasurementStack extends ij.VirtualStack {
 
     public VirtualMeshMeasurementStack(CLIJx clijx, MeshMeasurements mm, int depth, int frames) {
         this.clijx = clijx;
+        System.out.println("INITIALIZING VMMS " + clijx);
         this.mm = mm;
         availableChannels = mm.getResultIDs();
         this.channels = availableChannels.length;

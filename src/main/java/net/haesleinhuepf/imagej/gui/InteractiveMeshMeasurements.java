@@ -7,6 +7,7 @@ import ij.plugin.HyperStackConverter;
 import ij.plugin.frame.RoiManager;
 import ij.plugin.tool.PlugInTool;
 import ij.process.*;
+import net.haesleinhuepf.clij.CLIJ;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.clearcl.interfaces.ClearCLImageInterface;
 import net.haesleinhuepf.clijx.CLIJx;
@@ -27,6 +28,7 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
     // Backend
     VirtualMeshMeasurementStack stack;
     CLIJx clijx;
+    CLIJx clijxSecondary;
     MeshMeasurements mm;
 
     // Frontend
@@ -37,17 +39,54 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
 
     public InteractiveMeshMeasurements(ClearControlDataSet dataSet) {
         clijx = CLIJx.getInstance();
+        clijxSecondary = clijx;
         clijx.setWaitForKernelFinish(true);
+
+        GenericDialog gd = new GenericDialog("SPIMcat viewer");
+        //gd.addMessage("Running on GPU: " + clijx.getGPUName());
+
+        ArrayList<String> gpuNameList = CLIJ.getAvailableDeviceNames();
+        String[] gpuChoice = new String[gpuNameList.size()];
+        gpuNameList.toArray(gpuChoice);
+
+        gd.addChoice("Primary GPU", gpuChoice, clijx.getGPUName());
+        gd.addChoice("Secondary GPU", gpuChoice, clijx.getGPUName());
+
+        gd.addCheckbox("transposeXY", false);
+        gd.addNumericField("Zoom", 1.0, 2);
+        gd.showDialog();
+        if (gd.wasCanceled()) {
+            return;
+        }
+
+
+        int primaryGPU = gd.getNextChoiceIndex();
+        int secondaryGPU = gd.getNextChoiceIndex();
+        if (primaryGPU == secondaryGPU) {
+            if (clijx.getGPUName().compareTo(gpuNameList.get(primaryGPU)) != 0) {
+                clijx = new CLIJx(new CLIJ(primaryGPU));
+            }
+            clijxSecondary = clijx;
+        } else {
+            if (clijx.getGPUName().compareTo(gpuNameList.get(primaryGPU)) != 0) {
+                clijx = new CLIJx(new CLIJ(primaryGPU));
+            }
+            if (clijxSecondary.getGPUName().compareTo(gpuNameList.get(secondaryGPU)) != 0) {
+                clijxSecondary = new CLIJx(new CLIJ(secondaryGPU));
+            }
+        }
+        //clijx.setDoTimeTracing(true);
+
+        System.out.println("INITIALIZING IMM " + clijx);
 
         mm = new MeshMeasurements(dataSet, clijx);
 
-
-        mm.setZoomFactor(1);
+        mm.setTransposeXY(gd.getNextBoolean());
+        mm.setZoomFactor(gd.getNextNumber());
         mm.setBlurSigma(2);
         mm.setNumberDoubleErosionsForPseudoCellSegmentation(4);
         mm.setNumberDoubleDilationsForPseudoCellSegmentation(12);
 
-        mm.setTransposeXY(false);
         mm.setStoreMeasurements(true);
         mm.setProjectionVisualisationOnScreen(false);
         mm.setThreshold(300);
