@@ -8,14 +8,14 @@
 	<parent>
 		<groupId>net.haesleinhuepf</groupId>
 		<artifactId>clij-parent-pom</artifactId>
-		<version>1.6.2</version>
+		<version>1.6.3</version>
 		<relativePath />
 	</parent>
 
 	<groupId>net.haesleinhuepf</groupId>
 	<!-- note: the artifactId must contain an underscore _ to make ImageJ handle it correctly.-->
 	<artifactId>zoodirector_</artifactId>
-	<version>0.8.0</version>
+	<version>0.8.1</version>
 
 	<name>zoodirector</name>
 	<description>zoodirector</description>
