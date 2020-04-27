@@ -17,11 +17,13 @@ import net.haesleinhuepf.clijx.weka.gui.InteractivePanelPlugin;
 import net.haesleinhuepf.imagej.gui.spimcat.viewer.VirtualMeshMeasurementStack;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
+import net.haesleinhuepf.imagej.zoo.data.interactors.Plotter;
 import net.haesleinhuepf.imagej.zoo.measurement.MeshMeasurements;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.File;
 import java.util.ArrayList;
 
 public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
@@ -463,6 +465,109 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
             guiPanel.add(btnReset);
         }
 
+
+
+        {
+            Button btnConfig = new Button("Export view");
+            btnConfig.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    exportView();
+                }
+            });
+            guiPanel.add(btnConfig);
+        }
+
+
+    }
+
+    private void exportView() {
+        ClearControlDataSet dataSet = mm.getDataSet();
+        int frameStart = dataSet.getFrameRangeStart();
+        int frameEnd = dataSet.getFrameRangeEnd();
+        double startTime = dataSet.getTimesInMinutes()[frameStart];
+        double endTime = dataSet.getTimesInMinutes()[frameEnd];
+
+        GenericDialog gd = new GenericDialog("Plot over time");
+        gd.addNumericField("Start", startTime, 2);
+        gd.addNumericField("End", endTime, 2);
+        gd.addChoice("Time unit for x-axis", new String[]{"Seconds", "Minutes", "Hours"}, "Minutes");
+        gd.addNumericField("Number of images", Plotter.numberOfImages, 0);
+
+        gd.showDialog();
+
+        if (gd.wasCanceled()) {
+            return;
+        }
+
+        Plotter.startTime = gd.getNextNumber();
+        Plotter.endTime = gd.getNextNumber();
+        Plotter.timeUnit = gd.getNextChoice();
+        Plotter.numberOfImages = (int) gd.getNextNumber();
+        Plotter.writePrefs();
+
+        ImagePlus imp = exportView(dataSet,
+                Plotter.startTime,
+                Plotter.endTime,
+                Plotter.timeUnit,
+                Plotter.numberOfImages);
+        imp = HyperStackConverter.toHyperStack(imp, 1, 1, imp.getNSlices());
+        imp.setT(imp.getNFrames());
+        imp.show();
+
+    }
+
+    private ImagePlus exportView(ClearControlDataSet dataSet, double startTime, double endTime, String timeUnit, int numberOfImages) {
+        double startTimeInMinutes = startTime;
+        double endTimeInMinutes = endTime;
+        if (timeUnit == "Seconds") {
+            startTimeInMinutes = startTime / 60;
+            endTimeInMinutes = endTime / 60;
+        }
+        if (timeUnit == "Hours") {
+            startTimeInMinutes = startTime * 60;
+            endTimeInMinutes = endTime * 60;
+        }
+
+        double numberOfMinutes = endTimeInMinutes - startTimeInMinutes;
+
+        double timeStepInMinutes = 1.0 * numberOfMinutes / (numberOfImages - 1);
+
+        int firstFrame = dataSet.getFirstFrameAfterTimeInSeconds(startTimeInMinutes * 60 );
+        int lastFrame = dataSet.getFirstFrameAfterTimeInSeconds(endTimeInMinutes * 60);
+
+        int numberOfFrames = lastFrame - firstFrame + 1;
+
+        System.out.println("Number of frames: " + numberOfFrames);
+
+        //ImagePlus[] images = new ImagePlus[numberOfFrames];
+        ImageStack stack = null;
+        for (int i = 0; i < numberOfImages; i++) {
+            //System.out.println();
+            double time = startTimeInMinutes + i * timeStepInMinutes;
+            int frame = dataSet.getFirstFrameAfterTimeInSeconds(time * 60);
+            System.out.println("Frame " + frame);
+
+            String timepoint = "000000" + i;
+            timepoint = timepoint.substring(timepoint.length() - 6, timepoint.length());
+
+
+            int position = (viewer.getC()) +
+                    viewer.getZ() * viewer.getNChannels()+
+                    frame * viewer.getNChannels() * viewer.getNSlices();
+
+            ImagePlus image = new ImagePlus("", this.stack.getProcessor(position));
+
+            //images[i] = image;
+            if (stack == null) {
+                stack = new ImageStack(image.getWidth(), image.getHeight());
+            }
+            stack.addSlice(image.getProcessor());
+            //if (i > 5 ) break;
+        }
+
+        ImagePlus result = new ImagePlus(mm.getResultIDs()[viewer.getC() - 1], stack);
+        return result;
     }
 
     private void fillPulldown(Choice pulldown, String[] content) {
@@ -484,6 +589,29 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         gd.addCheckbox("Draw text", mm.isDrawText());
         gd.addCheckbox("Draw classification outlines", stack.isDrawOutlines());
 //        gd.addCheckbox("Auto brightness contrast", autoBrightNessContrast);
+
+        gd.addMessage("Classifcation");
+        gd.addNumericField("Number of trees", mm.getFrfNumberOfTrees(), 0);
+        gd.addNumericField("Number of features", mm.getFrfNumberOfFeatures(), 0);
+        gd.addNumericField("Max depth", mm.getFrfMaxDepth(), 0);
+
+
+
+        String selectedFeatures = mm.getMeasurementsForClassificationFilter();
+        gd.addMessage("Classification features");
+
+        mm.processFrameForRequestedResult(null, null, viewer.getFrame(), "");
+
+        ResultsTable table = mm.getAllMeasurements();
+        String[] features = table.getHeadings();
+        for (int i = 0; i < features.length; i++) {
+            if (i % 2 == 1) {
+                gd.addToSameRow();
+            }
+            gd.addCheckbox(features[i], selectedFeatures.length() == 0 || selectedFeatures.contains(";" + features[i] + ";"));
+        }
+
+        gd.addMessage("Affine transform");
 
         gd.addSlider("Rotation X", -90, 90, mm.getRotationX(), 5);
         gd.addSlider("Rotation Y", -90, 90, mm.getRotationY(), 5);
@@ -511,6 +639,21 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         mm.setDrawText(gd.getNextBoolean());
         stack.setDrawOutlines(gd.getNextBoolean());
   //      autoBrightNessContrast = gd.getNextBoolean();
+
+        mm.setFrfNumberOfTrees((int) gd.getNextNumber());
+        mm.setFrfNumberOfFeatures((int) gd.getNextNumber());
+        mm.setFrfMaxDepth((int) gd.getNextNumber());
+
+        String newSelectedFeatures = ";";
+        for (int i = 0; i < features.length; i++) {
+            if (gd.getNextBoolean()) {
+                newSelectedFeatures = newSelectedFeatures + features[i] + ";";
+            }
+        }
+        if (newSelectedFeatures.length() < 2) {
+            newSelectedFeatures = "";
+        }
+        mm.setMeasurementsForClassificationFilter(newSelectedFeatures);
 
         mm.setRotationX(gd.getNextNumber());
         mm.setRotationY(gd.getNextNumber());
@@ -589,6 +732,8 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
                 mm.processFrameForRequestedResult(null, null, roi.getTPosition(), "");
                 ClearCLBuffer clLabelMap = clijx.push(new ImagePlus("imp", stack.getProcessor(position)));
                 ResultsTable table = mm.getAllMeasurements(); //new ResultsTable();
+
+                table = mm.filterMeasurements(table);
                 //clijx.show(clLabelMap, "map");
                 ArrayList<Integer> labels = getLabelsFromRoi(clijx.pull(clLabelMap), roi);
                 clLabelMap.close();

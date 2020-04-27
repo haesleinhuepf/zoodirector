@@ -36,15 +36,15 @@ import java.io.File;
  */
 public class Plotter extends AbstractManipulator {
 
-    static double startTime = 0;
-    static double endTime = 60;
+    public static double startTime = 0;
+    public static double endTime = 60;
 
-    static String timeUnit = "Minutes";
+    public static String timeUnit = "Minutes";
 
     static int plotWidth = 640;
     static int plotHeight = 480;
 
-    static int numberOfImages = 100;
+    public static int numberOfImages = 100;
     static boolean saveImages = false;
 
     public static Double minY = null;
@@ -255,7 +255,7 @@ public class Plotter extends AbstractManipulator {
         saveImages = Prefs.get("net.haesleinhuepf.zoo.plotter.saveImages", saveImages?1:0) > 0;
     }
 
-    static void writePrefs() {
+    public static void writePrefs() {
         Prefs.set("net.haesleinhuepf.zoo.plotter.startTimeInMinutes", startTime);
         Prefs.set("net.haesleinhuepf.zoo.plotter.endTimeInMinutes", endTime);
         Prefs.set("net.haesleinhuepf.zoo.plotter.timeUnit", timeUnit);
