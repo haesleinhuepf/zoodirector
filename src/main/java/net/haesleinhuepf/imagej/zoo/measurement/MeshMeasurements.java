@@ -559,6 +559,9 @@ public class MeshMeasurements extends DataSetMeasurements {
     }
 
     public void processFrame(String outputFolder, ResultsTable meshMeasurementTable, int frame, String filename, String requested_result) {
+        if (frame != processed_frame) {
+            invalidate();
+        }
         // --------------------------------------------------------------------
         // HANDLE Table
         if (meshMeasurementTable != null) {
@@ -917,7 +920,7 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         // -------------------------------------------------------------------------------------------------------------
         // Statistics of labelled objects
-        if (storeMeasurements) {
+        if (storeMeasurements && !measurements.containsKey(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_INTENSITY.toString())) {
             time = System.currentTimeMillis();
             ResultsTable table = new ResultsTable();
             clijx.statisticsOfBackgroundAndLabelledPixels(inputImage, segmented_cells, table);
@@ -937,7 +940,10 @@ public class MeshMeasurements extends DataSetMeasurements {
                     StatisticsOfLabelledPixels.STATISTICS_ENTRY.MASS_CENTER_Z.toString(),
                     StatisticsOfLabelledPixels.STATISTICS_ENTRY.PIXEL_COUNT.toString(),
                     StatisticsOfLabelledPixels.STATISTICS_ENTRY.MINIMUM_INTENSITY.toString(),
-                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAXIMUM_INTENSITY.toString()
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAXIMUM_INTENSITY.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_DISTANCE_TO_MASS_CENTER.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_DISTANCE_TO_MASS_CENTER.toString(),
+                    StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_MEAN_DISTANCE_TO_MASS_CENTER_RATIO.toString()
             };
 
             int num_measurements = table.size();
@@ -1217,20 +1223,29 @@ public class MeshMeasurements extends DataSetMeasurements {
 
         if (measure_distances_in_detail) {
             time = System.currentTimeMillis();
-            int[] ns = new int[]{1, 2, 4, 6, 10, 20};
-            clijx.setRow(distance_matrix, 0, Float.MAX_VALUE);
-            clijx.setColumn(distance_matrix, 0, Float.MAX_VALUE);
-            clijx.setWhereXequalsY(distance_matrix, Float.MAX_VALUE);
-            clijx.show(distance_matrix, "mod_dist");
+            int[] ns = new int[]{1, 2, 4, 6, 10};
+            //clijx.setRow(distance_matrix, 0, Float.MAX_VALUE);
+            //clijx.setColumn(distance_matrix, 0, Float.MAX_VALUE);
+            //clijx.setWhereXequalsY(distance_matrix, Float.MAX_VALUE);
+            //clijx.show(distance_matrix, "mod_dist");
             for (int n : ns) {
                 ClearCLBuffer averageDistanceOfNclosestNeighbors_vector = measureAverageDistanceOfNClosestNeighbors(distance_matrix, n);
-                ClearCLBuffer averageDistanceOfNclosestNeighbors_map = generateParametricImage(averageDistanceOfNclosestNeighbors_vector, segmented_cells);
+                storeMeasurement("99_averageDistanceOf_" + n + "_closestNeighbors", averageDistanceOfNclosestNeighbors_vector);
+
+                ClearCLBuffer averageDistanceOfNfarOffNeighbors_vector = measureAverageDistanceOfNFarOffNeighbors(distance_matrix, n);
+                storeMeasurement("99_averageDistanceOf_" + n + "_faroffNeighbors", averageDistanceOfNfarOffNeighbors_vector);
+
+                //ClearCLBuffer averageDistanceOfNclosestNeighbors_map = generateParametricImage(averageDistanceOfNclosestNeighbors_vector, segmented_cells);
                 //averageDistanceOf1closestNeighbors
-                resultImages.put("99_averageDistanceOf_" + n + "_closestNeighbors", nonzero_min_projection(averageDistanceOfNclosestNeighbors_map));
-                clijx.release(averageDistanceOfNclosestNeighbors_map);
-                clijx.release(averageDistanceOfNclosestNeighbors_vector);
+                //resultImages.put("99_averageDistanceOf_" + n + "_closestNeighbors", nonzero_min_projection(averageDistanceOfNclosestNeighbors_map));
+                //clijx.release(averageDistanceOfNclosestNeighbors_map);
+                //clijx.release(averageDistanceOfNclosestNeighbors_vector);
             }
+
+
             timings.put("190 Detailed neighbor distance analysis", System.currentTimeMillis() - time);
+
+
         }
 
 

@@ -8,7 +8,6 @@ import ij.plugin.Duplicator;
 import ij.plugin.PlugIn;
 import ij.plugin.Thresholder;
 import ij.plugin.XY_Reader;
-import javafx.scene.control.CheckBox;
 import net.haesleinhuepf.clij.CLIJ;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clijx.CLIJx;

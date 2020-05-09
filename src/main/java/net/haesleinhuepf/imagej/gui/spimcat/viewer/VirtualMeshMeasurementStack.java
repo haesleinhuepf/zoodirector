@@ -82,10 +82,16 @@ public class VirtualMeshMeasurementStack extends ij.VirtualStack {
                 RoiManager rm = RoiManager.getInstance();
                 mm.getResult(frame, "");
                 ClearCLBuffer labelmap = null;
-                if (!mm.isAutoContextClassification()) {
-                    labelmap = (ClearCLBuffer) mm.getResult(frame, "07_max_labelled_cells_classification");
+                if (mm.getResultIDs()[channelIndex].startsWith("VOL_")) {
+                    ClearCLBuffer temp = (ClearCLBuffer) mm.getResult(frame, "VOL_02_label_classification");
+                    labelmap = clijx.create(new long[]{temp.getWidth(), temp.getHeight()}, temp.getNativeType());
+                    clijx.copySlice(temp, labelmap, slice);
                 } else {
-                    labelmap = (ClearCLBuffer) mm.getResult(frame, "07_max_labelled_cells_classification_autocontext");
+                    if (!mm.isAutoContextClassification()) {
+                        labelmap = (ClearCLBuffer) mm.getResult(frame, "07_max_labelled_cells_classification");
+                    } else {
+                        labelmap = (ClearCLBuffer) mm.getResult(frame, "07_max_labelled_cells_classification_autocontext");
+                    }
                 }
                 if (labelmap == null) {
                     System.out.println("Error: No labelmap found!");

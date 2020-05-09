@@ -95,6 +95,7 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         mm.setShowTableOnScreen(false);
         mm.setProjectionVisualisationToDisc(false);
         mm.setExportMesh(false);
+        mm.setMeasureDistancesInDetail(true);
 
         int frame = 100;
 
@@ -184,9 +185,9 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         GenericDialog gd = new GenericDialog("Configure channels");
         boolean sameRow = true;
         for (String channel : resultIDs) {
-            gd.addCheckbox(channel, (!channel.startsWith("VOL_")) ||
-                            channel.compareTo("VOL_03_TRANSFORMED_INPUT") == 0 ||
-                            channel.compareTo("VOL_06_LABELLED_CELLS") == 0
+            gd.addCheckbox(channel, true //(!channel.startsWith("VOL_")) ||
+                            //channel.compareTo("VOL_03_TRANSFORMED_INPUT") == 0 ||
+                            //channel.compareTo("VOL_06_LABELLED_CELLS") == 0
                    );
             if (sameRow) {
                 gd.addToSameRow();
@@ -511,7 +512,7 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
                 Plotter.endTime,
                 Plotter.timeUnit,
                 Plotter.numberOfImages);
-        imp = HyperStackConverter.toHyperStack(imp, 1, 1, imp.getNSlices());
+        imp = HyperStackConverter.toHyperStack(imp, mm.getResultIDs().length, 1, imp.getNSlices() / mm.getResultIDs().length);
         imp.setT(imp.getNFrames());
         imp.show();
 
@@ -543,26 +544,29 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         //ImagePlus[] images = new ImagePlus[numberOfFrames];
         ImageStack stack = null;
         for (int i = 0; i < numberOfImages; i++) {
-            //System.out.println();
+            System.out.println("=============================================================================");
+            System.out.println("i " + i);
             double time = startTimeInMinutes + i * timeStepInMinutes;
             int frame = dataSet.getFirstFrameAfterTimeInSeconds(time * 60);
             System.out.println("Frame " + frame);
 
-            String timepoint = "000000" + i;
-            timepoint = timepoint.substring(timepoint.length() - 6, timepoint.length());
+            //String timepoint = "000000" + i;
+            //timepoint = timepoint.substring(timepoint.length() - 6, timepoint.length());
 
+            for (int c = 0; c < viewer.getNChannels(); c++) {
+                System.out.println("c " + c);
+                int position = (c + 1) +
+                        viewer.getZ() * viewer.getNChannels() +
+                        frame * viewer.getNChannels() * viewer.getNSlices();
 
-            int position = (viewer.getC()) +
-                    viewer.getZ() * viewer.getNChannels()+
-                    frame * viewer.getNChannels() * viewer.getNSlices();
+                ImagePlus image = new ImagePlus("", this.stack.getProcessor(position));
 
-            ImagePlus image = new ImagePlus("", this.stack.getProcessor(position));
-
-            //images[i] = image;
-            if (stack == null) {
-                stack = new ImageStack(image.getWidth(), image.getHeight());
+                //images[i] = image;
+                if (stack == null) {
+                    stack = new ImageStack(image.getWidth(), image.getHeight());
+                }
+                stack.addSlice(image.getProcessor());
             }
-            stack.addSlice(image.getProcessor());
             //if (i > 5 ) break;
         }
 
@@ -727,8 +731,10 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
                 int position = (channel + 1) +
                                roi.getZPosition() * viewer.getNChannels()+
                                roi.getTPosition() * viewer.getNChannels() * viewer.getNSlices();
-                mm.invalidate();
-                mm.setStoreMeasurements(true);
+
+                //mm.invalidate();
+
+                //mm.setStoreMeasurements(true);
                 mm.processFrameForRequestedResult(null, null, roi.getTPosition(), "");
                 ClearCLBuffer clLabelMap = clijx.push(new ImagePlus("imp", stack.getProcessor(position)));
                 ResultsTable table = mm.getAllMeasurements(); //new ResultsTable();
@@ -741,7 +747,7 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
                 int klass = Integer.parseInt(roi.getName().split(" ")[0]);
 
                 for (int label : labels) {
-                    System.out.println("Label " + label + " / " + table.size());
+                    //System.out.println("Label " + label + " / " + table.size());
                     table.setValue("CLASS", label, klass);
                 }
 
@@ -774,8 +780,12 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         ImageProcessor ip = imp.getProcessor();
         synchronized (fp) {
             for (int i = 0; i < xpoints.length && i < ypoints.length; i++) {
-                Integer label = (int) ip.getf((int) fp.xpoints[i], (int) fp.ypoints[i]);
-                labels.add(label);
+                try {
+                    Integer label = (int) ip.getf((int) fp.xpoints[i], (int) fp.ypoints[i]);
+                    labels.add(label);
+                } catch (Exception e) {
+                    System.out.println("getLabelsFromRoi EXCEPTION " + e.getMessage());
+                }
             }
         }
         return labels;
@@ -880,7 +890,7 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
     public static void main(String[] args) {
         new ImageJ();
 
-        String sourceFolder = "C:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/";
+        String sourceFolder = "d:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/";
         //String sourceFolder = "C:/structure/data/2019-10-28-17-22-59-23-Finsterwalde_Tribolium_nGFP/";
         //String datasetFolder = "opticsprefused";
         String datasetFolder = "C0opticsprefused";

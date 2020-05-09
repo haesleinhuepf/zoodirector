@@ -6,7 +6,6 @@ import ij.gui.GenericDialog;
 import ij.measure.ResultsTable;
 import ij.plugin.HyperStackConverter;
 import ij.text.TextWindow;
-import jdk.nashorn.internal.codegen.Compiler;
 import net.haesleinhuepf.explorer.tree.manipulators.AbstractManipulator;
 import net.haesleinhuepf.imagej.gui.InteractiveMeshMeasurements;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
