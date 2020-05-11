@@ -97,7 +97,7 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
         mm.setExportMesh(false);
         mm.setMeasureDistancesInDetail(true);
 
-        int frame = 100;
+        int frame = 1;
 
         synchronized (mm) {
             mm.processFrameForRequestedResult(null, null, frame, "");
@@ -890,10 +890,14 @@ public class InteractiveMeshMeasurements extends InteractivePanelPlugin{
     public static void main(String[] args) {
         new ImageJ();
 
-        String sourceFolder = "d:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/";
+        //String sourceFolder = "d:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/";
         //String sourceFolder = "C:/structure/data/2019-10-28-17-22-59-23-Finsterwalde_Tribolium_nGFP/";
         //String datasetFolder = "opticsprefused";
-        String datasetFolder = "C0opticsprefused";
+        //String datasetFolder = "C0opticsprefused";
+
+        ClearControlDataSet.intel_byte_order = false;
+        String sourceFolder = "d:/structure/data/190124_ctrl_31_p6_ByungHoLee/";
+        String datasetFolder = "imported";
 
         ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
 

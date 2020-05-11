@@ -55,6 +55,7 @@ public class ClearControlDataSet {
     private int currentFrameRangeEnd;
 
     private AnnotatedFrames annotatedFrames;
+    public static boolean intel_byte_order = true;
 
     public ClearControlDataSet(String path, String dataset) {
         this.path = path;
@@ -163,7 +164,7 @@ public class ClearControlDataSet {
                 data = VirtualRawStackOpener.open(
                         path + "stacks/" + dataset + "/",
                         (int) widths[0], (int) heights[0], (int) depths[0],
-                        timesInSeconds.length, 16, true,
+                        timesInSeconds.length, 16, intel_byte_order,
                         voxelDimXs[0], voxelDimYs[1], voxelDimZs[0], "micron"
                 );
             } catch (NullPointerException e) {
