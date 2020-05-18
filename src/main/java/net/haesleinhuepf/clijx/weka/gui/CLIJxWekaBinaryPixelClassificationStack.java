@@ -1,6 +1,9 @@
 package net.haesleinhuepf.clijx.weka.gui;
 
-import ij.*;
+import ij.IJ;
+import ij.ImageJ;
+import ij.ImagePlus;
+import ij.ImageStack;
 import ij.gui.*;
 import ij.io.SaveDialog;
 import ij.plugin.HyperStackConverter;
@@ -13,8 +16,10 @@ import ij.process.ImageProcessor;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 import net.haesleinhuepf.clij2.CLIJ2;
-import net.haesleinhuepf.clijx.weka.*;
-import net.haesleinhuepf.clijx.weka.gui.InteractivePanelPlugin;
+import net.haesleinhuepf.clijx.weka.ApplyWekaModel;
+import net.haesleinhuepf.clijx.weka.CLIJxWeka2;
+import net.haesleinhuepf.clijx.weka.GenerateFeatureStack;
+import net.haesleinhuepf.clijx.weka.TrainWekaModelWithOptions;
 import net.haesleinhuepf.clijx.weka.gui.kernels.MakeRGB;
 
 import javax.swing.*;
@@ -26,7 +31,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Line2D;
 
-public class CLIJxWekaBinaryPixelClassification extends InteractivePanelPlugin implements PlugInFilter {
+public class CLIJxWekaBinaryPixelClassificationStack extends InteractivePanelPlugin implements PlugInFilter {
 
 
     static Color foregroundColor = Color.green;
@@ -43,7 +48,7 @@ public class CLIJxWekaBinaryPixelClassification extends InteractivePanelPlugin i
     ClearCLBuffer clResult = null;
     CLIJxWeka2 clijxweka = null;
 
-    public CLIJxWekaBinaryPixelClassification() {
+    public CLIJxWekaBinaryPixelClassificationStack() {
         overlay = new Overlay();
     }
 
@@ -233,6 +238,7 @@ public class CLIJxWekaBinaryPixelClassification extends InteractivePanelPlugin i
 
         refresh();
     }
+
 
     private void configClicked() {
         GenericDialog gd = new GenericDialog("Configure classifier training");
@@ -551,6 +557,6 @@ public class CLIJxWekaBinaryPixelClassification extends InteractivePanelPlugin i
 
         clijx.show(input,"input");
 
-        new CLIJxWekaBinaryPixelClassification().run(null);
+        new CLIJxWekaBinaryPixelClassificationStack().run(null);
     }
 }
