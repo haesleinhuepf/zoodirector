@@ -15,12 +15,6 @@ public class Utilities {
 
         //Toolbar.removeMacroTools();
 
-        Toolbar.addPlugInTool(new InteractiveBrightnessContrast());
-        Toolbar.addPlugInTool(new InteractiveZoom());
-        Toolbar.addPlugInTool(new InteractiveWindowPosition());
-        Toolbar.addPlugInTool(new InteractiveRotation());
-        Toolbar.addPlugInTool(new InteractiveBlurAndThreshold());
-        Toolbar.addPlugInTool(new InteractiveTopMaxAndThreshold());
 
         //new CLIJBar().setVisible(true);
 
