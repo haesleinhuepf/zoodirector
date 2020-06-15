@@ -6,6 +6,9 @@ import ij.gui.GenericDialog;
 import ij.measure.ResultsTable;
 import ij.plugin.HyperStackConverter;
 import ij.text.TextWindow;
+import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
+import net.haesleinhuepf.clij2.CLIJ2;
+import net.haesleinhuepf.clij2.plugins.Clear;
 import net.haesleinhuepf.explorer.tree.manipulators.AbstractManipulator;
 import net.haesleinhuepf.imagej.gui.InteractiveMeshMeasurements;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
@@ -38,11 +41,7 @@ public class DataSetHandler extends AbstractManipulator {
 
         Plotter.readPrefs();
         {
-            int formLine = newFormLine();
-            JLabel lblC = new JLabel("SPIMcat viewer");
-            add(lblC, "2, " + formLine);
-
-            JButton btnViwer = new JButton("Open viewer...");
+            JButton btnViwer = new JButton("Open SPIMcat viewer...");
             btnViwer.setSize(50, 10);
             btnViwer.addActionListener(new ActionListener() {
                 @Override
@@ -51,19 +50,13 @@ public class DataSetHandler extends AbstractManipulator {
                 }
 
             });
-            add(btnViwer, "4, " + formLine);
-            add(new JLabel());
-
+            add(btnViwer);
         }
 
 
 
         {
-            int formLine = newFormLine();
-            JLabel lblC = new JLabel("Extract thumnails over time");
-            add(lblC, "2, " + formLine);
-
-            JButton btnColor = new JButton("Extract...");
+            JButton btnColor = new JButton("Extract thumnails over time");
             btnColor.setSize(50, 10);
             btnColor.addActionListener(new ActionListener() {
                 @Override
@@ -72,17 +65,25 @@ public class DataSetHandler extends AbstractManipulator {
                 }
 
             });
-            add(btnColor, "4, " + formLine);
-            add(new JLabel());
-
+            add(btnColor);
         }
 
         {
-            int formLine = newFormLine();
-            JLabel lblC = new JLabel("Analyse focus measures over time");
-            add(lblC, "2, " + formLine);
+            JButton btnColor = new JButton("Extract cylinder projections over time");
+            btnColor.setSize(50, 10);
+            btnColor.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    generateCylinderProjections(dataSet);
+                }
 
-            JButton btnColor = new JButton("Analyse...");
+            });
+            add(btnColor);
+        }
+
+
+        {
+            JButton btnColor = new JButton("Analyse focus measures over time");
             btnColor.setSize(50, 10);
             btnColor.addActionListener(new ActionListener() {
                 @Override
@@ -91,17 +92,12 @@ public class DataSetHandler extends AbstractManipulator {
                 }
 
             });
-            add(btnColor, "4, " + formLine);
-            add(new JLabel());
-
+            add(btnColor);
         }
 
         {
-            int formLine = newFormLine();
-            JLabel lblC = new JLabel("Analyse mesh measures over time");
-            add(lblC, "2, " + formLine);
 
-            JButton btnColor = new JButton("Analyse");
+            JButton btnColor = new JButton("Analyse mesh measures over time");
             btnColor.setSize(50, 10);
             btnColor.addActionListener(new ActionListener() {
                 @Override
@@ -110,9 +106,9 @@ public class DataSetHandler extends AbstractManipulator {
                 }
 
             });
-            add(btnColor, "4, " + formLine);
+            add(btnColor);
 
-            JButton btnAnalyseWithGaps = new JButton("Analyse with gaps");
+            JButton btnAnalyseWithGaps = new JButton("Analyse mesh over time with gaps");
             btnAnalyseWithGaps.setSize(50, 10);
             btnAnalyseWithGaps.addActionListener(new ActionListener() {
                 @Override
@@ -121,7 +117,7 @@ public class DataSetHandler extends AbstractManipulator {
                 }
 
             });
-            add(btnAnalyseWithGaps, "4, " + formLine);
+            add(btnAnalyseWithGaps);
 
         }
 /*
@@ -606,4 +602,163 @@ public class DataSetHandler extends AbstractManipulator {
         return result;
 
     }
+
+    int background_subtraction_radius = 5;
+
+    private void generateCylinderProjections(ClearControlDataSet dataSet) {
+
+
+        int frameStart = dataSet.getFrameRangeStart();
+        int frameEnd = dataSet.getFrameRangeEnd();
+        double startTime = dataSet.getTimesInMinutes()[frameStart];
+        double endTime = dataSet.getTimesInMinutes()[frameEnd];
+
+        GenericDialog gd = new GenericDialog("Plot over time");
+        gd.addNumericField("Start", startTime, 2);
+        gd.addNumericField("End", endTime, 2);
+        gd.addChoice("Time unit for x-axis", new String[]{"Seconds", "Minutes", "Hours"}, "Minutes");
+        gd.addNumericField("Number of images", Plotter.numberOfImages, 0);
+
+        gd.addNumericField("background_subtraction_radius", background_subtraction_radius, 0);
+
+        gd.showDialog();
+
+        if (gd.wasCanceled()) {
+            return;
+        }
+
+        Plotter.startTime = gd.getNextNumber();
+        Plotter.endTime = gd.getNextNumber();
+        Plotter.timeUnit = gd.getNextChoice();
+        Plotter.numberOfImages = (int) gd.getNextNumber();
+        Plotter.saveImages = gd.getNextBoolean();
+
+        background_subtraction_radius = (int)gd.getNextNumber();
+
+        Plotter.writePrefs();
+
+        ImagePlus imp = generateCylinderProjections(dataSet,
+                Plotter.startTime,
+                Plotter.endTime,
+                Plotter.timeUnit,
+                Plotter.numberOfImages,
+                background_subtraction_radius);
+        imp = HyperStackConverter.toHyperStack(imp, 1, 1, imp.getNSlices());
+        imp.setT(imp.getNFrames());
+        imp.show();
+    }
+
+    public static ImagePlus generateCylinderProjections(ClearControlDataSet dataSet, double startTime, double endTime, String timeUnit, int numberOfImages, int background_subtraction_radius) {
+
+        double startTimeInMinutes = startTime;
+        double endTimeInMinutes = endTime;
+        if (timeUnit == "Seconds") {
+            startTimeInMinutes = startTime / 60;
+            endTimeInMinutes = endTime / 60;
+        }
+        if (timeUnit == "Hours") {
+            startTimeInMinutes = startTime * 60;
+            endTimeInMinutes = endTime * 60;
+        }
+
+        double numberOfMinutes = endTimeInMinutes - startTimeInMinutes;
+
+        double timeStepInMinutes = 1.0 * numberOfMinutes / (numberOfImages - 1);
+
+        int firstFrame = dataSet.getFirstFrameAfterTimeInSeconds(startTimeInMinutes * 60 );
+        int lastFrame = dataSet.getFirstFrameAfterTimeInSeconds(endTimeInMinutes * 60);
+
+        int numberOfFrames = lastFrame - firstFrame + 1;
+
+        System.out.println("Number of frames: " + numberOfFrames);
+
+        CLIJ2 clij2 = CLIJ2.getInstance();
+        ClearCLBuffer input = null;
+        ClearCLBuffer background_subtracted = null;
+        ClearCLBuffer image2 = null;
+        ClearCLBuffer image3 = null;
+        ClearCLBuffer maximum_x_projection = null;
+
+        //ImagePlus[] images = new ImagePlus[numberOfFrames];
+        ImageStack stack = null;
+        for (int i = 0; i < numberOfImages; i++) {
+            IJ.showProgress(i, numberOfImages);
+            //System.out.println();
+            double time = startTimeInMinutes + i * timeStepInMinutes;
+            int frame = dataSet.getFirstFrameAfterTimeInSeconds(time * 60);
+            System.out.println("Frame " + frame + " (" + i + " / " + numberOfImages + ")");
+
+            String timepoint = "000000" + i;
+            timepoint = timepoint.substring(timepoint.length() - 6, timepoint.length());
+
+            ImagePlus input_imp = dataSet.getImageData(frame);
+
+            if (input != null) {
+                input.close();
+            }
+            input = clij2.push(input_imp);
+
+            // --------------------------------------------
+            // background subtraction, maximum projection
+            if (background_subtracted == null) {
+                background_subtracted = clij2.create(input);
+            }
+            clij2.topHatBox(input, background_subtracted, background_subtraction_radius, background_subtraction_radius, 0);
+
+            // --------------------------------------------
+            // cylinder-maximum projection
+
+            // reslice top
+            if (image2 == null) {
+                image2 = clij2.create(input.getWidth(), input.getDepth(), input.getHeight());
+            }
+            clij2.resliceTop(background_subtracted, image2);
+
+            // radial projection
+            double number_of_angles = 360.0;
+            double angle_step_size = 0.25;
+            double start_angle_degrees = -90.0;
+            double center_x = background_subtracted.getWidth() / 2;
+            double center_y = 0.0;
+            double scale_factor_x = dataSet.getVoxelSizeZ(frame);
+            double scale_factor_y = dataSet.getVoxelSizeX(frame);
+
+
+            if (image3 == null) {
+                int maximumRadius = (int)Math.sqrt(Math.pow(image2.getWidth() / 2, 2) + Math.pow(image2.getHeight() / 2, 2));
+                image3 = clij2.create(maximumRadius, background_subtracted.getHeight(), (int)(number_of_angles / angle_step_size));
+            }
+
+            clij2.resliceRadial(image2, image3, angle_step_size, start_angle_degrees, center_x, center_y, scale_factor_x, scale_factor_y);
+
+            if (maximum_x_projection == null) {
+                maximum_x_projection = clij2.create(image3.getDepth() / 2, image3.getHeight());
+            }
+            clij2.maximumXProjection(image3, maximum_x_projection);
+
+            ImagePlus thumbnail = clij2.pull(maximum_x_projection);
+            thumbnail.setT(frame + 1);
+
+            ImagePlus image = new ImagePlus("", thumbnail.getProcessor());
+            //images[i] = image;
+            if (stack == null) {
+                stack = new ImageStack(image.getWidth(), image.getHeight());
+            }
+            stack.addSlice(image.getProcessor());
+            //if (i > 5 ) break;
+        }
+
+        clij2.release(input);
+        clij2.release(background_subtracted);
+        clij2.release(image2);
+        clij2.release(image3);
+        clij2.release(maximum_x_projection);
+
+
+        ImagePlus result = new ImagePlus("Cylinder projection [" + startTime + " ... " + endTime +  " " + timeUnit + "]" + dataSet.getShortName(), stack);
+        return result;
+
+    }
+
+
 }
