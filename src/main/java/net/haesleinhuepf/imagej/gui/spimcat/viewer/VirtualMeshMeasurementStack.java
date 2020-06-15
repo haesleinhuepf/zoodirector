@@ -26,7 +26,7 @@ public class VirtualMeshMeasurementStack extends ij.VirtualStack {
     private String[] availableChannels;
     private final int depth;
     private final int frames;
-    private boolean drawOutlines = true;
+    private boolean drawOutlines = false;
 
     public boolean isDrawOutlines() {
         return drawOutlines;
