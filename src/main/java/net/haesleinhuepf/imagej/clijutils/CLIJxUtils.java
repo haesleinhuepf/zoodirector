@@ -27,7 +27,7 @@ public class CLIJxUtils {
 
     public static ClearCLBuffer measureAverageSurfaceAngle(ClearCLBuffer pointlist, ClearCLBuffer touch_matrix) {
         ClearCLBuffer distanceVector = clijx.create(new long[]{touch_matrix.getWidth(), 1, 1}, clijx.Float);
-        clijx.averageAngleBetweenAdjacentTriangles(pointlist, touch_matrix, distanceVector);
+        //clijx.averageAngleBetweenAdjacentTriangles(pointlist, touch_matrix, distanceVector);
         return distanceVector;
 
         /*
