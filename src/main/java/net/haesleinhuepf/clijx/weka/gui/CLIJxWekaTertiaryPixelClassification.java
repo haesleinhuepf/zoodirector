@@ -28,7 +28,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Line2D;
 
-public class CLIJxWekaBinaryPixelClassification extends InteractivePanelPlugin implements PlugInFilter {
+public class CLIJxWekaTertiaryPixelClassification extends InteractivePanelPlugin implements PlugInFilter {
 
 
     static Color foregroundColor = Color.green;
@@ -46,7 +46,7 @@ public class CLIJxWekaBinaryPixelClassification extends InteractivePanelPlugin i
     ClearCLBuffer clResult = null;
     CLIJxWeka2 clijxweka = null;
 
-    public CLIJxWekaBinaryPixelClassification() {
+    public CLIJxWekaTertiaryPixelClassification() {
         overlay = new Overlay();
     }
 
