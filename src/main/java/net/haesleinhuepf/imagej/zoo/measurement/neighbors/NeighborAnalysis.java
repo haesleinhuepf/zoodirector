@@ -7,6 +7,7 @@ import ij.ImageStack;
 import ij.gui.GenericDialog;
 import ij.gui.Roi;
 import ij.measure.ResultsTable;
+import ij.plugin.Duplicator;
 import ij.plugin.HyperStackConverter;
 import ij.plugin.filter.PlugInFilter;
 import ij.process.ImageProcessor;
@@ -26,13 +27,14 @@ public class NeighborAnalysis implements PlugInFilter {
     static double spot_detectection_blur_sigma = 3;
     static double threshold = 0;
     static boolean exclude_labels_on_edges = true;
-    static boolean process_just_current_frame = true;
+    static boolean process_just_current_frame = false;
     static boolean sync_results_and_input = true;
 
     ArrayList<ImagePlus> synced;
 
     NeighborProcessor[] processors = new NeighborProcessor[] {
-            new AverageDistanceOfTouchingNeighborsProcessor(),      new AverageDistanceOfNClosestPointsProcessor(1),
+            new AverageDistanceOfTouchingNeighborsProcessor(),      new StandardDeviationDistanceOfTouchingNeighborsProcessor(),
+            new AverageDistanceOfNClosestPointsProcessor(1),     new AverageDistanceOfNClosestPointsProcessor(2),
             new SpotDetectionProcessor(),                           new AverageDistanceOfNClosestPointsProcessor(3),
             new LabelMapProcessor(),                                new AverageDistanceOfNClosestPointsProcessor(6),
             new VoronoiProcessor(),                                 new AverageDistanceOfNClosestPointsProcessor(10),
@@ -52,7 +54,12 @@ public class NeighborAnalysis implements PlugInFilter {
             new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_DISTANCE_TO_CENTROID.toString()),
             new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_DISTANCE_TO_MASS_CENTER.toString()),
             new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_MEAN_DISTANCE_TO_CENTROID_RATIO.toString()),
-            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_MEAN_DISTANCE_TO_MASS_CENTER_RATIO.toString())
+            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_MEAN_DISTANCE_TO_MASS_CENTER_RATIO.toString()),
+
+            new MaximumTemporalOverlapProcessor(), new LocalMedianMaximumTemporalOverlapProcessor(),
+            new MinimumTemporalDistance(), new LocalMedianMinimumTemporalDistance()
+
+
     };
 
     static boolean[] former_selection = null;
@@ -125,6 +132,8 @@ public class NeighborAnalysis implements PlugInFilter {
         }
 
         CLIJ2 clij2 = CLIJ2.getInstance();
+        ClearCLBuffer former_pointlist = null;
+        ClearCLBuffer former_label_map = null;
 
         for (int t = 0; t < input_imp.getNFrames(); t++) {
             if (!process_just_current_frame) {
@@ -241,6 +250,12 @@ public class NeighborAnalysis implements PlugInFilter {
                         }
                         ((TakesPropertyTable) processor).setTable(table);
                     }
+                    if (processor instanceof TakesFormerPointlist) {
+                        ((TakesFormerPointlist) processor).setFormerPointlist(former_pointlist);
+                    }
+                    if (processor instanceof TakesFormerLabelMap) {
+                        ((TakesFormerLabelMap) processor).setFormerLabelMap(former_label_map);
+                    }
 
                     ClearCLBuffer result = processor.process(clij2, input, pointlist, label_map, touch_matrix, distance_matrix);
                     ImagePlus imp = clij2.pull(result);
@@ -254,8 +269,13 @@ public class NeighborAnalysis implements PlugInFilter {
             }
 
             input.close();
-            pointlist.close();
+            if (former_pointlist != null) {
+                former_pointlist.close();
+            }
+            former_pointlist = pointlist;
 
+            former_label_map = clij2.create(label_map);
+            clij2.copy(label_map, former_label_map);
             if (label_map != input) {
                 label_map.close();
             }
@@ -265,6 +285,12 @@ public class NeighborAnalysis implements PlugInFilter {
                 break;
             }
         }
+        if (former_pointlist != null) {
+            former_pointlist.close();
+        }
+        if (former_label_map != null) {
+            former_label_map.close();
+        }
 
         synced = new ArrayList<>();
         synced.add(input_imp);
@@ -272,12 +298,12 @@ public class NeighborAnalysis implements PlugInFilter {
             if (result_stacks.keySet().contains(processor)) {
                 ImageStack stack = result_stacks.get(processor);
                 ImagePlus imp = new ImagePlus(processor.getName(), stack);
-                //if (input_imp.getNSlices() > 1) {
-                int frames = imp.getNFrames() / input_imp.getNSlices();
-                int slices = input_imp.getNSlices();
-                imp = HyperStackConverter.toHyperStack(imp, 1, slices, frames);
-                imp.setTitle(processor.getName());
-                //}
+                if (imp.getNSlices() > 1) {
+                    //int frames = imp.getNSlices() / input_imp.getNSlices();
+                    //int slices = input_imp.getNSlices();
+                    imp = HyperStackConverter.toHyperStack(imp, 1, input_imp.getNSlices(), input_imp.getNFrames());
+                    imp.setTitle(processor.getName());
+                }
 
                 if (roi != null) {
                     imp.setRoi(roi);
@@ -322,9 +348,14 @@ public class NeighborAnalysis implements PlugInFilter {
         ImagePlus imp = IJ.openImage("C:/structure/data/027632.tif");
                 //IJ.openImage("src/main/resources/thumbnails.tif");
         imp.killRoi();
+
+        //imp = new Duplicator().run(imp, 1,1,1,1,1,10);
+
         imp.show();
 
-        NeighborAnalysis.threshold = 0;
+        NeighborAnalysis.spot_detectection_blur_sigma = 1;
+        NeighborAnalysis.threshold = 30;
+
 
         //imp.setRoi(new EllipseRoi(153.0,45.0,101.0,492.0,0.53));
 
