@@ -5,8 +5,7 @@ import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 import net.haesleinhuepf.clij2.CLIJ2;
 import net.haesleinhuepf.imagej.zoo.measurement.neighbors.NeighborProcessor;
 
-@Deprecated // the functionality inside is broken
-public class EstimatedNumberOfTouchingNeighborsProcessor implements NeighborProcessor {
+public class MeanTouchPortionProcessor implements NeighborProcessor {
     @Override
     public ClearCLBuffer process(CLIJ2 clij2, ClearCLBuffer input, ClearCLBuffer pointlist, ClearCLBuffer label_map, ClearCLBuffer touch_matrix, ClearCLBuffer distance_matrix) {
         ClearCLBuffer touch_count_matrix = clij2.create(distance_matrix);
@@ -24,7 +23,7 @@ public class EstimatedNumberOfTouchingNeighborsProcessor implements NeighborProc
         clij2.countTouchingNeighbors(touch_matrix, count_vector);
 
         ClearCLBuffer average_vector = clij2.create(touch_count_matrix.getWidth(), 1);
-        clij2.divideImages(sum_vector, count_vector, average_vector);
+        clij2.divideImages(count_vector, sum_vector, average_vector);
 
         //ClearCLBuffer vector = clij2.create(touch_count_matrix.getWidth(), 1);
         //clij2.power(average_vector, vector, -1);
@@ -47,7 +46,7 @@ public class EstimatedNumberOfTouchingNeighborsProcessor implements NeighborProc
 
     @Override
     public String getName() {
-        return "Estimated number of touching neighbors";
+        return "Mean touch portion of touching neighbors";
     }
 
     @Override

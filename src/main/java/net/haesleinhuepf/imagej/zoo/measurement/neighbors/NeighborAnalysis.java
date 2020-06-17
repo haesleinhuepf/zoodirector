@@ -1,11 +1,9 @@
 package net.haesleinhuepf.imagej.zoo.measurement.neighbors;
 
-import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.ImageStack;
-import ij.gui.EllipseRoi;
 import ij.gui.GenericDialog;
 import ij.gui.Roi;
 import ij.measure.ResultsTable;
@@ -19,46 +17,45 @@ import net.haesleinhuepf.clij2.plugins.StatisticsOfLabelledPixels;
 import net.haesleinhuepf.clij2.plugins.VoronoiLabeling;
 import net.haesleinhuepf.imagej.zoo.measurement.neighbors.implementations.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class NeighborAnalysis implements PlugInFilter {
 
-    static int background_subtraction_radius = 5;
+    static int background_subtraction_radius = 0;
     static double spot_detectection_blur_sigma = 3;
     static double threshold = 0;
+    static boolean exclude_labels_on_edges = true;
+    static boolean process_just_current_frame = true;
+    static boolean sync_results_and_input = true;
+
+    ArrayList<ImagePlus> synced;
 
     NeighborProcessor[] processors = new NeighborProcessor[] {
-        new AverageDistanceOfTouchingNeighborsProcessor(),
-            new SpotDetectionProcessor(),
-            new LabelMapProcessor(),
-            new TouchDistanceMeshProcessor(),
-            new TouchMeshProcessor(),
-            new TouchCountMeshProcessor(),
-            new NumberOfTouchingNeighborsProcessor(),
-            new EstimatedNumberOfTouchingNeighborsProcessor(),
-            new TouchPortionMeshProcessor(),
+            new AverageDistanceOfTouchingNeighborsProcessor(),      new AverageDistanceOfNClosestPointsProcessor(1),
+            new SpotDetectionProcessor(),                           new AverageDistanceOfNClosestPointsProcessor(3),
+            new LabelMapProcessor(),                                new AverageDistanceOfNClosestPointsProcessor(6),
+            new VoronoiProcessor(),                                 new AverageDistanceOfNClosestPointsProcessor(10),
+            new TouchMeshProcessor(),                               new CountNonZeroPixels(10),
+            new TouchDistanceMeshProcessor(),                       new CountNonZeroPixels(25),
+            new TouchCountMeshProcessor(),                          new CountNonZeroPixels(50),
+            new TouchPortionMeshProcessor(),                        new CountNonZeroPixels(75),
 
-            new AverageDistanceOfNClosestPointsProcessor(1),
-            new AverageDistanceOfNClosestPointsProcessor(2),
-            new AverageDistanceOfNClosestPointsProcessor(3),
-            new AverageDistanceOfNClosestPointsProcessor(6),
-            new AverageDistanceOfNClosestPointsProcessor(8),
-            new AverageDistanceOfNClosestPointsProcessor(10),
-            new AverageDistanceOfNClosestPointsProcessor(20),
+            new MeanTouchPortionProcessor(),                                new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_INTENSITY.toString()),
+            new NumberOfTouchingNeighborsProcessor(),                       new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MINIMUM_INTENSITY.toString()),
+            new LocalMeanNumberOfTouchingNeighborsProcessor(),              new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAXIMUM_INTENSITY.toString()),
+            new LocalMedianNumberOfTouchingNeighborsProcessor(),            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.STANDARD_DEVIATION_INTENSITY.toString()),
+            new LocalStandardDeviationNumberOfTouchingNeighborsProcessor(), new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.PIXEL_COUNT.toString()),
 
-            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_INTENSITY.toString()),
-            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MINIMUM_INTENSITY.toString()),
-            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAXIMUM_INTENSITY.toString()),
-            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.STANDARD_DEVIATION_INTENSITY.toString()),
-            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.PIXEL_COUNT.toString()),
             new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_DISTANCE_TO_CENTROID.toString()),
-            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_DISTANCE_TO_CENTROID.toString()),
-            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_MEAN_DISTANCE_TO_CENTROID_RATIO.toString()),
             new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MEAN_DISTANCE_TO_MASS_CENTER.toString()),
+            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_DISTANCE_TO_CENTROID.toString()),
             new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_DISTANCE_TO_MASS_CENTER.toString()),
+            new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_MEAN_DISTANCE_TO_CENTROID_RATIO.toString()),
             new ParametricImageProcessor(StatisticsOfLabelledPixels.STATISTICS_ENTRY.MAX_MEAN_DISTANCE_TO_MASS_CENTER_RATIO.toString())
-
     };
+
+    static boolean[] former_selection = null;
 
     @Override
     public int setup(String s, ImagePlus imagePlus) {
@@ -75,15 +72,24 @@ public class NeighborAnalysis implements PlugInFilter {
         input_imp.killRoi();
 
         GenericDialog gd = new GenericDialog("Neighbor analyser");
-        gd.addChoice("Input", new String[]{"Raw image", "Spot image", "Label Map"}, "Raw image");
+        gd.addChoice("Input", new String[]{"Raw image", "Spot image", "Binary image", "Label Map"}, "Raw image");
 
-        gd.addNumericField("Background subtraction (top-hat) radius", background_subtraction_radius, 0);
-        gd.addNumericField("Spot detection blur sigma", spot_detectection_blur_sigma, 2);
+        gd.addNumericField("Background_subtraction_radius (top-hat)", background_subtraction_radius, 0);
+        gd.addNumericField("Spot_detection_blur_sigma", spot_detectection_blur_sigma, 2);
         gd.addNumericField("Threshold", threshold, 2);
+
+        gd.addCheckbox("Exclude_labels_on_edges", exclude_labels_on_edges);
+        gd.addCheckbox("Process_just_current_frame", process_just_current_frame);
+        gd.addCheckbox("Sync_results_and_input", sync_results_and_input);
+
 
         int check_box_count = 0;
         for (NeighborProcessor processor : processors) {
-            gd.addCheckbox(processor.getName().replace(" ", "_"), processor.getDefaultActivated());
+            boolean selected = processor.getDefaultActivated();
+            if (former_selection != null) {
+                selected = former_selection[check_box_count];
+            }
+            gd.addCheckbox(processor.getName().replace(" ", "_"), selected);
 
             if (check_box_count % 2 == 0) {
                 gd.addToSameRow();
@@ -103,16 +109,28 @@ public class NeighborAnalysis implements PlugInFilter {
 
         HashMap<NeighborProcessor, ImageStack> result_stacks = new HashMap<>();
 
+        exclude_labels_on_edges = gd.getNextBoolean();
+        process_just_current_frame = gd.getNextBoolean();
+        sync_results_and_input = gd.getNextBoolean();
+
+        former_selection = new boolean[processors.length];
+
+        int i = 0;
         for (NeighborProcessor processor : processors) {
             if (gd.getNextBoolean()) {
                 result_stacks.put(processor, new ImageStack());
+                former_selection[i] = true;
             }
+            i++;
         }
 
         CLIJ2 clij2 = CLIJ2.getInstance();
 
         for (int t = 0; t < input_imp.getNFrames(); t++) {
-            input_imp.setT(t + 1);
+            if (!process_just_current_frame) {
+                IJ.showProgress(t, input_imp.getNFrames());
+                input_imp.setT(t + 1);
+            }
 
             ClearCLBuffer input = clij2.pushCurrentZStack(input_imp);
             ClearCLBuffer label_map = null;
@@ -123,8 +141,11 @@ public class NeighborAnalysis implements PlugInFilter {
 
             if (input_type.compareTo("Raw image") == 0) {
                 ClearCLBuffer temp1 = clij2.create(input);
-                clij2.topHatBox(input, temp1, background_subtraction_radius, background_subtraction_radius, 0);
-
+                if (background_subtraction_radius <= 0) {
+                    clij2.copy(input, temp1);
+                } else {
+                    clij2.topHatBox(input, temp1, background_subtraction_radius, background_subtraction_radius, 0);
+                }
                 ClearCLBuffer temp2 = clij2.create(input);
                 clij2.gaussianBlur(temp1, temp2, spot_detectection_blur_sigma, spot_detectection_blur_sigma, 0);
 
@@ -142,7 +163,16 @@ public class NeighborAnalysis implements PlugInFilter {
                     clij2.copy(temp3, temp2);
                 }
 
-                number_of_objects = (int)clij2.sumOfAllPixels(temp2);
+                number_of_objects = (int) clij2.sumOfAllPixels(temp2);
+                if (number_of_objects == 0) {
+                    IJ.log("Error: No spots found.");
+                    //clij2.show(temp1, "temp1");
+                    //clij2.show(temp2, "temp2");
+                } else if (number_of_objects > 4000) {
+                    IJ.log("Warning: More than 4000 spots found. That many points may cause issues in the downstream analysis.\n" +
+                            "Consider processing a smaller dataset.");
+                }
+                System.out.println("Number of objects: " + number_of_objects);
                 pointlist = clij2.create(number_of_objects, input.getDimension());
                 clij2.spotsToPointList(temp2, pointlist);
 
@@ -153,33 +183,55 @@ public class NeighborAnalysis implements PlugInFilter {
                 temp2.close();
 
             } else if (input_type.compareTo("Spot image") == 0) {
-                number_of_objects = (int)clij2.sumOfAllPixels(input);
+                number_of_objects = (int) clij2.sumOfAllPixels(input);
                 pointlist = clij2.create(number_of_objects, input.getDimension());
                 clij2.spotsToPointList(input, pointlist);
 
                 label_map = clij2.create(input.getDimensions(), clij2.Float);
                 VoronoiLabeling.voronoiLabeling(clij2, input, label_map);
+            } else if (input_type.compareTo("Binary image") == 0) {
+                number_of_objects = (int) clij2.sumOfAllPixels(input);
+
+                ClearCLBuffer temp = clij2.create(input.getDimensions(), clij2.Float);
+                clij2.connectedComponentsLabelingBox(input, temp);
+
+                label_map = clij2.create(input.getDimensions(), clij2.Float);
+                clij2.labelVoronoiOctagon(temp, label_map);
+                temp.close();
             } else {
                 label_map = input;
-                number_of_objects = (int)clij2.maximumOfAllPixels(input);
-                pointlist = clij2.create(number_of_objects, label_map.getDimension());
-                clij2.centroidsOfLabels(input, pointlist);
+                number_of_objects = (int) clij2.maximumOfAllPixels(label_map);
             }
+
+            if (exclude_labels_on_edges) {
+                ClearCLBuffer temp = clij2.create(label_map);
+                clij2.excludeLabelsOnEdges(label_map, temp);
+                clij2.copy(temp, label_map);
+                temp.close();
+
+                number_of_objects = (int) clij2.maximumOfAllPixels(label_map);
+            }
+            if (pointlist != null) {
+                pointlist.close();
+            }
+            pointlist = clij2.create(number_of_objects, label_map.getDimension());
+            clij2.centroidsOfLabels(label_map, pointlist);
 
             System.out.println("Input " + input);
             System.out.println("Pointlist " + pointlist);
             System.out.println("Label map " + label_map);
 
 
-
             ClearCLBuffer touch_matrix = clij2.create(number_of_objects + 1, number_of_objects + 1);
             clij2.generateTouchMatrix(label_map, touch_matrix);
+            //clij2.show(touch_matrix, "TM");
 
             ClearCLBuffer distance_matrix = clij2.create(number_of_objects + 1, number_of_objects + 1);
             clij2.generateDistanceMatrix(pointlist, pointlist, distance_matrix);
+            //clij2.show(distance_matrix, "DM");
 
             for (NeighborProcessor processor : processors) {
-                 if (result_stacks.keySet().contains(processor)) {
+                if (result_stacks.keySet().contains(processor)) {
                     ImageStack stack = result_stacks.get(processor);
 
                     if (processor instanceof TakesPropertyTable) {
@@ -208,18 +260,24 @@ public class NeighborAnalysis implements PlugInFilter {
                 label_map.close();
             }
             //break;
+
+            if (process_just_current_frame) {
+                break;
+            }
         }
 
+        synced = new ArrayList<>();
+        synced.add(input_imp);
         for (NeighborProcessor processor : processors) {
             if (result_stacks.keySet().contains(processor)) {
                 ImageStack stack = result_stacks.get(processor);
                 ImagePlus imp = new ImagePlus(processor.getName(), stack);
-                if (input_imp.getNSlices() > 1) {
-                    int frames = imp.getNFrames() / input_imp.getNSlices();
-                    int slices = input_imp.getNSlices();
-                    imp = HyperStackConverter.toHyperStack(imp, 1, slices, frames);
-                    imp.setTitle(processor.getName());
-                }
+                //if (input_imp.getNSlices() > 1) {
+                int frames = imp.getNFrames() / input_imp.getNSlices();
+                int slices = input_imp.getNSlices();
+                imp = HyperStackConverter.toHyperStack(imp, 1, slices, frames);
+                imp.setTitle(processor.getName());
+                //}
 
                 if (roi != null) {
                     imp.setRoi(roi);
@@ -235,7 +293,7 @@ public class NeighborAnalysis implements PlugInFilter {
                     imp.setRoi(roi);
                     imp.changes = false;
                 }
-
+                synced.add(imp);
                 imp.show();
 
                 IJ.run(imp,"Enhance Contrast", "saturated=0.35");
@@ -248,6 +306,12 @@ public class NeighborAnalysis implements PlugInFilter {
         input_imp.setZ(original_z);
         input_imp.setT(original_t);
         input_imp.setRoi(roi);
+
+        if (sync_results_and_input) {
+            ImagePlus.addImageListener(new Syncronizer(synced));
+        }
+
+
         System.out.println("Bye");
     }
 
@@ -264,6 +328,7 @@ public class NeighborAnalysis implements PlugInFilter {
 
         //imp.setRoi(new EllipseRoi(153.0,45.0,101.0,492.0,0.53));
 
+        NeighborAnalysis.exclude_labels_on_edges = true;
         new NeighborAnalysis().run(null);
     }
 }

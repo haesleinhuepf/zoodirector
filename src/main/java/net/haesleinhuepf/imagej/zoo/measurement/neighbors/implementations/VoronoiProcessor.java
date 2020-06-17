@@ -5,31 +5,37 @@ import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 import net.haesleinhuepf.clij2.CLIJ2;
 import net.haesleinhuepf.imagej.zoo.measurement.neighbors.NeighborProcessor;
 
-public class NumberOfTouchingNeighborsProcessor implements NeighborProcessor {
+public class VoronoiProcessor implements NeighborProcessor {
     @Override
     public ClearCLBuffer process(CLIJ2 clij2, ClearCLBuffer input, ClearCLBuffer pointlist, ClearCLBuffer label_map, ClearCLBuffer touch_matrix, ClearCLBuffer distance_matrix) {
-        int number_of_objects = (int)pointlist.getWidth();
-        ClearCLBuffer vector = clij2.create(number_of_objects, 1, 1);
-        clij2.countTouchingNeighbors(touch_matrix, vector);
+        ClearCLBuffer temp = clij2.create(pointlist.getWidth(), pointlist.getHeight() + 1);
+        clij2.set(temp, 1);
+        clij2.paste(pointlist, temp, 0, 0);
+
+
+        ClearCLBuffer spots = clij2.create(input.getDimensions(), NativeTypeEnum.Float);
+        clij2.writeValuesToPositions(temp, spots);
+        temp.close();
 
         ClearCLBuffer result = clij2.create(input.getDimensions(), NativeTypeEnum.Float);
-        clij2.replaceIntensities(label_map, vector, result);
-        vector.close();
+        clij2.voronoiOctagon(spots, result);
+        spots.close();
+
         return result;
     }
 
     @Override
     public String getLUTName() {
-        return "Fire";
+        return "Grays";
     }
 
     @Override
     public String getName() {
-        return "Number of touching neighbors";
+        return "Voronoi diagram";
     }
 
     @Override
     public boolean getDefaultActivated() {
-        return true;
+        return false;
     }
 }
