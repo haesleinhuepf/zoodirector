@@ -15,7 +15,7 @@
 	<groupId>net.haesleinhuepf</groupId>
 	<!-- note: the artifactId must contain an underscore _ to make ImageJ handle it correctly.-->
 	<artifactId>zoodirector_</artifactId>
-	<version>0.8.10</version>
+	<version>0.8.11</version>
 
 	<name>zoodirector</name>
 	<description>zoodirector</description>

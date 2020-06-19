@@ -11,8 +11,10 @@ import ij.plugin.Duplicator;
 import ij.plugin.HyperStackConverter;
 import ij.plugin.filter.PlugInFilter;
 import ij.process.ImageProcessor;
+import net.haesleinhuepf.clij.CLIJ;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
+import net.haesleinhuepf.clij.macro.AbstractCLIJPlugin;
 import net.haesleinhuepf.clij2.CLIJ2;
 import net.haesleinhuepf.clij2.plugins.StatisticsOfLabelledPixels;
 import net.haesleinhuepf.clij2.plugins.VoronoiLabeling;
@@ -29,6 +31,7 @@ public class NeighborAnalysis implements PlugInFilter {
     static boolean exclude_labels_on_edges = true;
     static boolean process_just_current_frame = false;
     static boolean sync_results_and_input = true;
+    static String input_type = "Raw image";
 
     ArrayList<ImagePlus> synced;
 
@@ -79,7 +82,13 @@ public class NeighborAnalysis implements PlugInFilter {
         input_imp.killRoi();
 
         GenericDialog gd = new GenericDialog("Neighbor analyser");
-        gd.addChoice("Input", new String[]{"Raw image", "Spot image", "Binary image", "Label Map"}, "Raw image");
+        ArrayList<String> deviceList = CLIJ.getAvailableDeviceNames();
+        CLIJ clij = CLIJ.getInstance();
+
+        String[] deviceArray = new String[deviceList.size()];
+        deviceList.toArray(deviceArray);
+        gd.addChoice("CL_Device", deviceArray, clij.getClearCLContext().getDevice().getName());
+        gd.addChoice("Input", new String[]{"Raw image", "Spot image", "Binary image", "Label Map"}, input_type);
 
         gd.addNumericField("Background_subtraction_radius (top-hat)", background_subtraction_radius, 0);
         gd.addNumericField("Spot_detection_blur_sigma", spot_detectection_blur_sigma, 2);
@@ -109,7 +118,8 @@ public class NeighborAnalysis implements PlugInFilter {
             return;
         }
 
-        String input_type = gd.getNextChoice();
+        String cl_device_name = gd.getNextChoice();
+        input_type = gd.getNextChoice();
         background_subtraction_radius = (int)gd.getNextNumber();
         spot_detectection_blur_sigma = gd.getNextNumber();
         threshold = gd.getNextNumber();
@@ -131,7 +141,7 @@ public class NeighborAnalysis implements PlugInFilter {
             i++;
         }
 
-        CLIJ2 clij2 = CLIJ2.getInstance();
+        CLIJ2 clij2 = CLIJ2.getInstance(cl_device_name);
         ClearCLBuffer former_pointlist = null;
         ClearCLBuffer former_label_map = null;
 
