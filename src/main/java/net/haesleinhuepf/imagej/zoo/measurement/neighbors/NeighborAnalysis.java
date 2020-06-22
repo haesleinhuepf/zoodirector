@@ -13,6 +13,10 @@ import ij.plugin.filter.PlugInFilter;
 import ij.process.ImageProcessor;
 import net.haesleinhuepf.clij.CLIJ;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
+import net.haesleinhuepf.clij.clearcl.ClearCLImage;
+import net.haesleinhuepf.clij.clearcl.ClearCLKernel;
+import net.haesleinhuepf.clij.clearcl.enums.ImageChannelDataType;
+import net.haesleinhuepf.clij.clearcl.interfaces.ClearCLImageInterface;
 import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 import net.haesleinhuepf.clij.macro.AbstractCLIJPlugin;
 import net.haesleinhuepf.clij2.CLIJ2;
@@ -20,6 +24,7 @@ import net.haesleinhuepf.clij2.plugins.StatisticsOfLabelledPixels;
 import net.haesleinhuepf.clij2.plugins.VoronoiLabeling;
 import net.haesleinhuepf.imagej.zoo.measurement.neighbors.implementations.*;
 
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -32,6 +37,7 @@ public class NeighborAnalysis implements PlugInFilter {
     static boolean process_just_current_frame = false;
     static boolean sync_results_and_input = true;
     static String input_type = "Raw image";
+    static boolean fill_gaps_between_labels = true;
 
     ArrayList<ImagePlus> synced;
 
@@ -93,6 +99,7 @@ public class NeighborAnalysis implements PlugInFilter {
         gd.addNumericField("Background_subtraction_radius (top-hat)", background_subtraction_radius, 0);
         gd.addNumericField("Spot_detection_blur_sigma", spot_detectection_blur_sigma, 2);
         gd.addNumericField("Threshold", threshold, 2);
+        gd.addCheckbox("Fill gaps between labels", fill_gaps_between_labels);
 
         gd.addCheckbox("Exclude_labels_on_edges", exclude_labels_on_edges);
         gd.addCheckbox("Process_just_current_frame", process_just_current_frame);
@@ -126,6 +133,7 @@ public class NeighborAnalysis implements PlugInFilter {
 
         HashMap<NeighborProcessor, ImageStack> result_stacks = new HashMap<>();
 
+        fill_gaps_between_labels = gd.getNextBoolean();
         exclude_labels_on_edges = gd.getNextBoolean();
         process_just_current_frame = gd.getNextBoolean();
         sync_results_and_input = gd.getNextBoolean();
@@ -218,7 +226,17 @@ public class NeighborAnalysis implements PlugInFilter {
                 clij2.labelVoronoiOctagon(temp, label_map);
                 temp.close();
             } else {
+                System.out.println("Reading label map (else)");
                 label_map = input;
+                number_of_objects = (int) clij2.maximumOfAllPixels(label_map);
+            }
+
+            if (fill_gaps_between_labels) {
+                ClearCLBuffer temp = clij2.create(label_map);
+                voronoiLabeling(clij2, label_map, temp);
+                clij2.copy(temp, label_map);
+                temp.close();
+
                 number_of_objects = (int) clij2.maximumOfAllPixels(label_map);
             }
 
@@ -278,7 +296,6 @@ public class NeighborAnalysis implements PlugInFilter {
                 }
             }
 
-            input.close();
             if (former_pointlist != null) {
                 former_pointlist.close();
             }
@@ -286,6 +303,7 @@ public class NeighborAnalysis implements PlugInFilter {
 
             former_label_map = clij2.create(label_map);
             clij2.copy(label_map, former_label_map);
+            input.close();
             if (label_map != input) {
                 label_map.close();
             }
@@ -349,6 +367,68 @@ public class NeighborAnalysis implements PlugInFilter {
 
 
         System.out.println("Bye");
+    }
+
+    @Deprecated
+    public static boolean voronoiLabeling(CLIJ2 clij2, ClearCLBuffer src, ClearCLImageInterface dst) {
+        //CLIJx.getInstance().stopWatch("");
+
+        ClearCLImage flip = clij2.create(dst.getDimensions(), ImageChannelDataType.Float);
+        ClearCLImage flop = clij2.create(flip);
+        //CLIJx.getInstance().stopWatch("alloc");
+
+        ClearCLKernel flipKernel = null;
+        ClearCLKernel flopKernel = null;
+
+        clij2.copy(src, flip);
+        //ConnectedComponentsLabelingBox.connectedComponentsLabelingBox(clij2, src, flip, false);
+        //CLIJx.getInstance().stopWatch("cca");
+
+        ClearCLBuffer flag = clij2.create(1,1,1);
+        float[] flagBool = new float[1];
+        flagBool[0] = 1;
+
+        FloatBuffer buffer = FloatBuffer.wrap(flagBool);
+
+        int i = 0;
+        //CLIJx.getInstance().stopWatch("");
+        while (flagBool[0] != 0) {
+            //CLIJx.getInstance().stopWatch("h " + i);
+            //System.out.println(i);
+
+            flagBool[0] = 0;
+            flag.readFrom(buffer, true);
+
+            if (i % 2 == 0) {
+                flipKernel = clij2.onlyzeroOverwriteMaximumBox(flip, flag, flop, flipKernel);
+            } else {
+                flopKernel = clij2.onlyzeroOverwriteMaximumDiamond(flop, flag, flip, flopKernel);
+            }
+            i++;
+
+            flag.writeTo(buffer, true);
+            //System.out.println(flagBool[0]);
+        }
+        //CLIJx.getInstance().stopWatch("h " + i);
+
+        if (i % 2 == 0) {
+            clij2.copy(flip, dst);
+        } else {
+            clij2.copy(flop, dst);
+        }
+        //CLIJx.getInstance().stopWatch("edges");
+
+        if (flipKernel != null) {
+            flipKernel.close();
+        }
+        if (flopKernel != null) {
+            flopKernel.close();
+        }
+        clij2.release(flip);
+        clij2.release(flop);
+        clij2.release(flag);
+
+        return true;
     }
 
 
