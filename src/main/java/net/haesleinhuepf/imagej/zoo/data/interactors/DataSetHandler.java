@@ -1,8 +1,10 @@
 package net.haesleinhuepf.imagej.zoo.data.interactors;
 
+import de.mpicbg.rhaase.spimcat.postprocessing.fijiplugins.plotting.PlotTableOverTime;
 import fiji.util.gui.GenericDialogPlus;
 import ij.*;
 import ij.gui.GenericDialog;
+import ij.gui.Plot;
 import ij.measure.ResultsTable;
 import ij.plugin.HyperStackConverter;
 import ij.text.TextWindow;
@@ -12,11 +14,15 @@ import net.haesleinhuepf.clij2.plugins.Clear;
 import net.haesleinhuepf.explorer.tree.manipulators.AbstractManipulator;
 import net.haesleinhuepf.imagej.gui.InteractiveMeshMeasurements;
 import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSet;
+import net.haesleinhuepf.imagej.zoo.data.ClearControlDataSetOpener;
+import net.haesleinhuepf.imagej.zoo.data.VirtualClearControlDataSetStack;
 import net.haesleinhuepf.imagej.zoo.data.classification.Phase;
 import net.haesleinhuepf.imagej.zoo.measurement.ImageQualityMeasurements;
 import net.haesleinhuepf.imagej.zoo.measurement.MeasurementTable;
 import net.haesleinhuepf.imagej.zoo.measurement.MeshMeasurements;
 import net.haesleinhuepf.imagej.zoo.visualisation.ClearControlInteractivePlot;
+import org.apache.commons.math3.stat.descriptive.rank.Max;
+import org.apache.commons.math3.stat.descriptive.rank.Min;
 
 import javax.swing.*;
 import java.awt.*;
@@ -81,6 +87,32 @@ public class DataSetHandler extends AbstractManipulator {
             add(btnColor);
         }
 
+        {
+            JButton btnColor = new JButton("Extract stacks over time");
+            btnColor.setSize(50, 10);
+            btnColor.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    generateStacks(dataSet);
+                }
+
+            });
+            add(btnColor);
+        }
+
+
+        {
+            JButton btnColor = new JButton("Plot frame delay over time");
+            btnColor.setSize(50, 10);
+            btnColor.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    plotFrameDelayOverTime(dataSet);
+                }
+
+            });
+            add(btnColor);
+        }
 
         {
             JButton btnColor = new JButton("Analyse focus measures over time");
@@ -178,6 +210,95 @@ public class DataSetHandler extends AbstractManipulator {
             add(btnShow, "4, " + formLine);
         }
 */
+    }
+
+    private void plotFrameDelayOverTime(ClearControlDataSet dataSet) {
+        int end_time_in_minutes = (int)dataSet.getTimesInMinutes()[dataSet.getTimesInMinutes().length - 1];
+        int num_frame_delay_measurement_count = dataSet.getFramesPerMinute().length;
+        double[] timesInHours = new double[num_frame_delay_measurement_count];
+        System.arraycopy(dataSet.getTimesInHours(), 0, timesInHours, 0, num_frame_delay_measurement_count);
+
+
+
+        double[] framesPerMinute = new double[end_time_in_minutes];
+        System.arraycopy(dataSet.getFramesPerMinute(), 0, framesPerMinute, 0, num_frame_delay_measurement_count);
+
+        double minFramesPerMinute = new Min().evaluate(framesPerMinute);
+        double maxFramesPerMinute = 10; new Max().evaluate(framesPerMinute);
+
+        double minX = new Min().evaluate(timesInHours);
+        double maxX = new Max().evaluate(timesInHours);
+
+        PlotTableOverTime.plotTitle = "Frames per minute over time";
+        PlotTableOverTime.plotYTitle = "Frames per minute";
+        PlotTableOverTime.plotXTitle = "Time / h";
+        PlotTableOverTime.width = 768;
+        PlotTableOverTime.height = 192;
+        Plot plot = PlotTableOverTime.getPlot(framesPerMinute, timesInHours, minFramesPerMinute, maxFramesPerMinute, minX, maxX, timesInHours.length - 1);
+        plot.getImagePlus().show();
+    }
+
+    public static void main(String[] args) {
+        new ImageJ();
+
+        String sourceFolder = "d:/structure/data/2019-12-17-16-54-37-81-Lund_Tribolium_nGFP_TMR/";
+        //String sourceFolder = "C:/structure/data/2019-10-28-17-22-59-23-Finsterwalde_Tribolium_nGFP/";
+        //String datasetFolder = "opticsprefused";
+        String datasetFolder = "C0opticsprefused";
+
+        //ClearControlDataSet.intel_byte_order = false;
+        //String sourceFolder = "d:/structure/data/190124_ctrl_31_p6_ByungHoLee/";
+        //String datasetFolder = "imported";
+
+        ClearControlDataSet dataSet = ClearControlDataSetOpener.open(sourceFolder, datasetFolder);
+
+        new DataSetHandler(dataSet).plotFrameDelayOverTime(dataSet);
+    }
+
+    private void generateStacks(ClearControlDataSet dataSet) {
+        int frameStart = dataSet.getFrameRangeStart();
+        int frameEnd = dataSet.getFrameRangeEnd();
+        Plotter.startTime = dataSet.getTimesInMinutes()[frameStart];
+        Plotter.endTime = dataSet.getTimesInMinutes()[frameEnd];
+        Plotter.timeUnit = "Minutes";
+
+
+        GenericDialog gd = new GenericDialog("Generate stacks over time");
+        gd.addNumericField("Start", Plotter.startTime, 2);
+        gd.addNumericField("End", Plotter.endTime, 2);
+        gd.addChoice("Time unit for x-axis", new String[]{"Seconds", "Minutes", "Hours"}, Plotter.timeUnit);
+        gd.addNumericField("Number of time points", Plotter.numberOfImages);
+
+        String[] names = new String[Phase.all.length];
+        int i = 0;
+        for (Phase phase : Phase.all) {
+            names[i] = phase.toString();
+            i++;
+        }
+        gd.showDialog();
+        if (gd.wasCanceled()) {
+            return;
+        }
+
+        Plotter.startTime = gd.getNextNumber();
+        Plotter.endTime = gd.getNextNumber();
+        Plotter.timeUnit = gd.getNextChoice();
+        Plotter.numberOfImages = (int) gd.getNextNumber();
+
+        double startTimeInSeconds = Plotter.startTime;
+        double endTimeInSeconds = Plotter.endTime;
+        if (Plotter.timeUnit == "Minutes") {
+            startTimeInSeconds = Plotter.startTime * 60;
+            endTimeInSeconds = Plotter.endTime * 60;
+        }
+        if (Plotter.timeUnit == "Hours") {
+            startTimeInSeconds = Plotter.startTime * 3600;
+            endTimeInSeconds = Plotter.endTime * 3600;
+        }
+
+        ImageStack stack = new VirtualClearControlDataSetStack(dataSet, startTimeInSeconds, endTimeInSeconds, Plotter.numberOfImages);
+        ImagePlus result = new ImagePlus("Cylinder projection [" + Plotter.startTime + " ... " + Plotter.endTime +  " " + Plotter.timeUnit + "]" + dataSet.getShortName(), stack);
+        result.show();
     }
 
     private void addPhaseAnnotation(ClearControlDataSet dataSet) {
