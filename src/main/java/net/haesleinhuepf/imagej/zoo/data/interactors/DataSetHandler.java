@@ -297,7 +297,7 @@ public class DataSetHandler extends AbstractManipulator {
         }
 
         ImageStack stack = new VirtualClearControlDataSetStack(dataSet, startTimeInSeconds, endTimeInSeconds, Plotter.numberOfImages);
-        ImagePlus result = new ImagePlus("Cylinder projection [" + Plotter.startTime + " ... " + Plotter.endTime +  " " + Plotter.timeUnit + "]" + dataSet.getShortName(), stack);
+        ImagePlus result = new ImagePlus("Stacks [" + Plotter.startTime + " ... " + Plotter.endTime +  " " + Plotter.timeUnit + "]" + dataSet.getShortName(), stack);
         result.show();
     }
 
